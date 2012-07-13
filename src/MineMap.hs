@@ -19,7 +19,6 @@ module MineMap
   , Route
   , routeToString
   , stringToRoute
-  , pathsTo
   ) where
 
 import Control.Arrow
@@ -132,20 +131,3 @@ stringToRoute = mapM f
         f 'W' = Just Wait
         f 'A' = Just Abort
         f _   = Nothing
-
-walkRoute :: Pos -> Route -> Pos
-walkRoute = foldl move
-    where move (x,y) MoveUp    = (x,y+1)
-          move (x,y) MoveDown  = (x,y-1)
-          move (x,y) MoveLeft  = (x-1,y)
-          move (x,y) MoveRight = (x+1,y)
-          move (x,y) Wait      = (x,y)
-
-pathsTo :: MineMap -> Pos -> Pos -> [Route]
-pathsTo = genRoutes [[]]
-    where genRoutes rs m s e =
-            let newrs = filter (\r -> isWalkable m $ walkRoute s r) $
-                        concat $ map (\r -> map (:r)
-                        [MoveUp,MoveDown,MoveLeft,MoveRight,Wait]) rs
-                lambdars = filter (\r -> isLambda m $ walkRoute s r) newrs
-            in map reverse lambdars ++ genRoutes newrs m s e

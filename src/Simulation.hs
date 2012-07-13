@@ -2,6 +2,9 @@ module Simulation
   ( StopReason(..)
   , act
   , walk
+  , walkFrom
+  , simState
+  , simEnded
   , walkToEnd
   , step
   , score
@@ -78,6 +81,16 @@ walk m (a:as) = do m' <- step =<< act m a
                    stop <- gets isJust
                    if stop then return m' else walk m' as
 
+walkFrom :: Simulation -> Route -> Simulation
+walkFrom sim r = do m <- sim
+                    walk m r
+
+simState :: Simulation -> MineMap
+simState sim = fst $ runState sim Nothing
+
+simEnded :: Simulation -> Bool
+simEnded sim = isJust $ snd $ runState sim Nothing
+
 walkToEnd :: MineMap -> Route -> (StopReason, MineMap)
 walkToEnd m r = case runState (walk m r) Nothing of
                   (m', Nothing)     -> (RobotAbort, m')
@@ -88,8 +101,10 @@ squashed from to =
   isRock to (second (+1) (robot to)) && isEmpty from (second (+1) (robot to))
 
 stopCheck :: MineMap -> MineMap -> Simulation
-stopCheck from to | squashed from to = put (Just RobotDead) >> return to
+stopCheck from to | squashed from to = modify kill >> return to
                   | otherwise = return to
+  where kill (Just RobotFinished) = Just RobotFinished
+        kill _                    = Just RobotDead
 
 cost :: Route -> Int
 cost = length . takeWhile (/=Abort)

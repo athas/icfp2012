@@ -1,5 +1,6 @@
 module Main(main) where
 
+import Heuristics
 import Simulation
 import MapParser
 import MineMap
@@ -10,9 +11,7 @@ import Data.Maybe
 import System.Environment
 
 solution :: MineMap -> Route
-solution m = (head $ pathsTo m start end) ++ [Abort]
-    where start = robot m
-          end   = head $ S.toList $ lambdas m
+solution m = runHeuristic m dumbHeuristic
 
 main :: IO ()
 main = do args <- getArgs
