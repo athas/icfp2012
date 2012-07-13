@@ -103,6 +103,7 @@ register m p c = case c of
   where m' = m { cells = M.insert p c (cells m) }
 
 data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort
+              deriving (Eq, Ord, Show)
 
 type Route = [Action]
 

@@ -86,7 +86,7 @@ stopCheck from to
   | otherwise = Right to
 
 cost :: Route -> Int
-cost = length
+cost = length . takeWhile (/=Abort)
 
 score :: MineMap -> Route -> (StopReason, MineMap) -> Int
 score from r (reason, to) =
