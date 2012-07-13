@@ -6,6 +6,7 @@ import MapParser
 import MineMap
 import MapPrinter
 
+import Control.Concurrent
 import System.IO
 import qualified Data.Set as S
 import Data.Maybe
@@ -16,7 +17,10 @@ solution m = runHeuristic m dumbHeuristic
 
 showSteps :: Simulation -> Route -> IO Simulation
 showSteps sim [] = return sim
-showSteps m (a:as) = do putStrLn $ printMap $ simState m'
+showSteps m (a:as) = do putStr "\27[2J"
+                        putStr "\27[H"
+                        putStrLn $ printMap $ simState m'
+                        threadDelay 500000
                         showSteps m' as
   where m' = walkFrom m [a]
 
