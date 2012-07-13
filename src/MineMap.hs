@@ -43,7 +43,7 @@ cellProp :: (Cell -> Bool) -> Bool -> MineMap -> Pos -> Bool
 cellProp f d m p = maybe d f $ M.lookup p $ cells m
 
 isWall :: MineMap -> Pos -> Bool
-isWall = cellProp (==Wall) False
+isWall = cellProp (==Wall) True
 
 isRobot :: MineMap -> Pos -> Bool
 isRobot = cellProp (==Robot) False
