@@ -11,6 +11,7 @@ import Simulation
 import Control.Monad.Reader
 import Data.List
 import Data.Ord
+import Debug.Trace
 import qualified Data.Set as S
 
 data Heuristic = Heuristic {
@@ -22,12 +23,16 @@ runHeuristic :: MineMap -> Heuristic -> Route
 runHeuristic m h = maximumBy (comparing value) $
                    runReader (run (walk m []) []) m
   where value r = score m r $ walkToEnd m r
-        run sim r = do let m' = simState sim
-                           ls = take 3 $ nextLambda h m'
-                           routes = concatMap (take 3 . routeTo h m') ls
-                       if simEnded sim then return [r]
-                       else liftM (r:) $ liftM concat $ forM routes $ \route ->
-                         run (sim `walkFrom` route) (r++route)
+        run sim r =
+          let m' = simState sim
+          in do let ls = take 3 $ nextLambda h m'
+                    dests = if null ls then S.toList $ lifts m'
+                             else take 3 ls
+                    routes = concatMap (take 3 . routeTo h m') dests
+                trace (show routes) (return ())
+                if simEnded sim || all null routes then return [r]
+                else liftM (r:) $ liftM concat $ forM routes $ \route ->
+                  run (sim `walkFrom` route) (r++route)
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
