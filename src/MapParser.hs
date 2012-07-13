@@ -21,7 +21,7 @@ parseChar 'R' = return Robot
 parseChar c = fail $ "Invalid character in map: '" ++ [c] ++ "'"
 
 parseMap :: String -> MapParser MineMap
-parseMap = mkMap <=< foldM combine (Nothing, newMap (0,0))
+parseMap = mkMap <=< foldM combine (Nothing, newMap (1,1))
            . concatMap mkpos . zip [1..] . reverse . lines
   where mkpos (y,l) = zipWith (\x c -> ((x,y), c)) [1..] l
         combine (rp, m) (p, c) = do
