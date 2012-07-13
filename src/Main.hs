@@ -7,22 +7,20 @@ import MineMap
 import MapPrinter
 
 import Control.Concurrent
-import System.IO
-import qualified Data.Set as S
 import Data.Maybe
 import System.Environment
 
 solution :: MineMap -> Route
 solution m = runHeuristic m dumbHeuristic
 
-showSteps :: Simulation -> Route -> IO Simulation
+showSteps :: SimState -> Route -> IO SimState
 showSteps sim [] = return sim
-showSteps m (a:as) = do putStr "\27[2J"
-                        putStr "\27[H"
-                        putStrLn $ printMap $ simState m'
-                        threadDelay 500000
-                        showSteps m' as
-  where m' = walkFrom m [a]
+showSteps sim (a:as) = do putStr "\27[2J"
+                          putStr "\27[H"
+                          putStrLn $ printMap $ mineMap sim'
+                          threadDelay 500000
+                          showSteps sim' as
+  where sim' = sim `step` a
 
 main :: IO ()
 main = do args <- getArgs
@@ -33,10 +31,10 @@ main = do args <- getArgs
                            Left e -> error e
                            Right from -> do
                              putStrLn $ "From:\n" ++ printMap from
-                             _ <- showSteps (walk from []) route
-                             let (reason, to) = walkToEnd from route
+                             sim <- showSteps (stateFromMap from) route
+                             let reason = stopReason sim
                              putStrLn $ "Stopped because of: " ++ show reason
-                             putStrLn $ "Score: " ++ show (score from route (reason, to))
+                             putStrLn $ "Score: " ++ show (score sim)
             [] -> do s <- getContents
                      case parseMap s of
                        Left e -> error e

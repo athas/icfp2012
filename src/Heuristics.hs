@@ -7,12 +7,9 @@ module Heuristics
 
 import MineMap
 import Simulation
-import MapPrinter
 
-import Control.Monad.Reader
 import Data.List
 import Data.Ord
-import Debug.Trace
 import qualified Data.Set as S
 
 data Heuristic = Heuristic {
@@ -21,18 +18,16 @@ data Heuristic = Heuristic {
   }
 
 runHeuristic :: MineMap -> Heuristic -> Route
-runHeuristic m h = maximumBy (comparing value) $
-                   runReader (run (walk m []) []) m
-  where value r = score m r $ walkToEnd m r
-        run sim r =
-          let m' = simState sim
-          in do let ls = take 3 $ nextLambda h m'
-                    dests = if null ls then S.toList $ lifts m'
-                            else take 3 ls
-                    routes = concatMap (take 3 . routeTo h m') dests
-                if simEnded sim || all null routes then return [r]
-                else liftM (r:) $ liftM concat $ forM routes $ \route ->
-                  run (sim `walkFrom` route) (r++route)
+runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
+                   concat $ run $ stateFromMap m
+  where run sim =
+          let m' = mineMap sim
+              dests = case nextLambda h m' of
+                        [] -> S.toList $ lifts m'
+                        ls -> take 3 ls
+              routes = concatMap (take 3 . routeTo h m') dests
+          in if finished sim || all null routes then return [sim]
+             else concatMap (run . walk sim) routes
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {

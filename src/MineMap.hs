@@ -4,6 +4,7 @@ module MineMap
   , Cell(..)
   , MineMap(..)
   , newMap
+  , changeMap
   , mapBounds
   , getCell
   , isEarth
@@ -47,6 +48,10 @@ data MineMap = MineMap { robot :: Pos
 
 newMap :: Pos -> Int -> Int -> Int -> MineMap
 newMap p = MineMap p (M.singleton p Robot) S.empty S.empty S.empty 
+
+changeMap :: MineMap -> [(Pos, Cell)] -> MineMap
+changeMap = foldl add
+  where add m' (p,c) = setCell m' p c
 
 mapBounds :: MineMap -> (Int, Int)
 mapBounds = (maximum *** maximum) . unzip . M.keys . cells
