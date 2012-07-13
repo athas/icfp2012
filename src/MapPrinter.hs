@@ -1,4 +1,4 @@
-module MapPrinter where
+module MapPrinter (printMap) where
 
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -22,15 +22,7 @@ chunks n = aux
       (a, b) | null a -> []
              | otherwise -> a : aux b
 
--- printMap :: MineMap -> IO ()
--- printMap m = putStrLn charMap
---   where
---     (w, h) = mapBounds m
---     charMap = concatMap (++"\n") . chunks w .  M.elems . M.map cellToChar . cells $ m
-
-printMap m = putStrLn $ concatMap (++ "\n") . chunks w $ chars
+printMap m = putStrLn $ concatMap (++ "\n") . reverse . chunks w $ chars
   where
     (w, h) = mapBounds m
-    chars = [ cellToChar (getCell m (i, j)) | i <- [1..w], j <- [1..h] ]
-
-Right foo = parseMap "######\n#. *R#\n#  \\.#\n#\\ * #\nL  .\\#\n######"
+    chars = [ cellToChar (getCell m (i, j)) | j <- [1..h], i <- [1..w] ]
