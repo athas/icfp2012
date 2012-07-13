@@ -1,5 +1,6 @@
 module Simulation
   ( StopReason(..)
+  , Simulation
   , act
   , walk
   , walkFrom

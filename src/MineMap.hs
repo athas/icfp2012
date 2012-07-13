@@ -80,9 +80,6 @@ isEmpty = cellProp (==Empty) False
 isLambda :: MineMap -> Pos -> Bool
 isLambda = cellProp (==Lambda) False
 
-isWalkable :: MineMap -> Pos -> Bool
-isWalkable m p = isEmpty m p || isEarth m p || isLambda m p
-
 setCell :: MineMap -> Pos -> Cell -> MineMap
 setCell m p c = register m' p c
   where m' = maybe m (unregister m p) $ M.lookup p $ cells m
@@ -101,7 +98,7 @@ register m p c = case c of
                    Rock   -> m' { rocks = S.insert p (rocks m') }
                    Lambda -> m' { lambdas = S.insert p (lambdas m') }
                    Robot  -> m' { robot = p
-                                , cells = if isRobot m' (robot m')
+                                , cells = if isRobot m' (robot m') && p /= robot m'
                                           then M.insert (robot m') Empty (cells m')
                                           else cells m'
                                 }
