@@ -2,7 +2,7 @@ module MineMap
   ( Pos
   , LiftState(..)
   , Cell(..)
-  , MineMap (robot, lambdas, rocks)
+  , MineMap (robot, cells, lambdas, rocks)
   , newMap
   , mapBounds
   , getCell
