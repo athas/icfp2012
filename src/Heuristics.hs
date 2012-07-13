@@ -7,6 +7,7 @@ module Heuristics
 
 import MineMap
 import Simulation
+import MapPrinter
 
 import Control.Monad.Reader
 import Data.List
@@ -27,9 +28,8 @@ runHeuristic m h = maximumBy (comparing value) $
           let m' = simState sim
           in do let ls = take 3 $ nextLambda h m'
                     dests = if null ls then S.toList $ lifts m'
-                             else take 3 ls
+                            else take 3 ls
                     routes = concatMap (take 3 . routeTo h m') dests
-                trace (show routes) (return ())
                 if simEnded sim || all null routes then return [r]
                 else liftM (r:) $ liftM concat $ forM routes $ \route ->
                   run (sim `walkFrom` route) (r++route)
@@ -41,7 +41,7 @@ dumbHeuristic = Heuristic {
                 }
 
 isWalkable :: MineMap -> Pos -> Bool
-isWalkable m p = isEmpty m p || isEarth m p || isLambda m p
+isWalkable m p = isEmpty m p || isEarth m p || isLambda m p || isOpenLift m p
 
 walkRoute :: Pos -> Route -> Pos
 walkRoute = foldl move
@@ -57,6 +57,6 @@ pathsTo = genRoutes [[]]
           genRoutes rs m s e =
             let newrs = filter (\r -> isWalkable m $ walkRoute s r) $
                         concat $ map (\r -> map (:r)
-                        [MoveUp,MoveDown,MoveLeft,MoveRight,Wait]) rs
-                lambdars = filter (\r -> isLambda m $ walkRoute s r) newrs
+                        [MoveUp,MoveDown,MoveLeft,MoveRight]) rs
+                lambdars = filter (\r -> e == walkRoute s r) newrs
             in map reverse lambdars ++ genRoutes newrs m s e
