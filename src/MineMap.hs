@@ -2,14 +2,17 @@ module MineMap
   ( Pos
   , LiftState(..)
   , Cell(..)
-  , MineMap(..)
+  , MineMap (robot, lambdas, rocks)
   , newMap
+  , mapBounds
+  , getCell
   , isEarth
   , isRobot
   , isWall
   , isRock
   , isLambda
   , isLift
+  , isOpenLift
   , isEmpty
   , setCell
   , Action(..)
@@ -17,6 +20,8 @@ module MineMap
   , routeToString
   ) where
 
+import Control.Arrow
+import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
 
@@ -39,6 +44,12 @@ data MineMap = MineMap { robot :: Pos
 newMap :: Pos -> MineMap
 newMap p = MineMap p (M.singleton p Robot) S.empty S.empty S.empty
 
+mapBounds :: MineMap -> (Int, Int)
+mapBounds = (maximum *** maximum) . unzip . M.keys . cells
+
+getCell :: MineMap -> Pos -> Cell
+getCell m p = fromMaybe (error "Out of bounds") $ M.lookup p $ cells m
+
 cellProp :: (Cell -> Bool) -> Bool -> MineMap -> Pos -> Bool
 cellProp f d m p = maybe d f $ M.lookup p $ cells m
 
@@ -55,6 +66,9 @@ isLift :: MineMap -> Pos -> Bool
 isLift = cellProp f False
   where f (Lift _) = True
         f _        = False
+
+isOpenLift :: MineMap -> Pos -> Bool
+isOpenLift = cellProp (==Lift Open) False
 
 isRock :: MineMap -> Pos -> Bool
 isRock = cellProp (==Rock) False
@@ -82,7 +96,9 @@ register m p c = case c of
                    Lift _ -> m' { lifts = S.insert p (lifts m') }
                    Rock   -> m' { rocks = S.insert p (rocks m') }
                    Lambda -> m' { lambdas = S.insert p (lambdas m') }
-                   Robot  -> m' { robot = p }
+                   Robot  -> m' { robot = p
+                                , cells = M.insert (robot m') Empty (cells m')
+                                }
                    _      -> m'
   where m' = m { cells = M.insert p c (cells m) }
 
