@@ -102,7 +102,9 @@ register m p c = case c of
                    Rock   -> m' { rocks = S.insert p (rocks m') }
                    Lambda -> m' { lambdas = S.insert p (lambdas m') }
                    Robot  -> m' { robot = p
-                                , cells = M.insert (robot m') Empty (cells m')
+                                , cells = if isRobot m' (robot m')
+                                          then M.insert (robot m') Empty (cells m')
+                                          else cells m'
                                 }
                    _      -> m'
   where m' = m { cells = M.insert p c (cells m) }
