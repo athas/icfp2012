@@ -4,6 +4,7 @@ import Heuristics
 import Simulation
 import MapParser
 import MineMap
+import MapPrinter
 
 import System.IO
 import qualified Data.Set as S
@@ -13,6 +14,12 @@ import System.Environment
 solution :: MineMap -> Route
 solution m = runHeuristic m dumbHeuristic
 
+showSteps :: Simulation -> Route -> IO Simulation
+showSteps sim [] = return sim
+showSteps m (a:as) = do putStrLn $ printMap $ simState m'
+                        showSteps m' as
+  where m' = walkFrom m [a]
+
 main :: IO ()
 main = do args <- getArgs
           case args of
@@ -21,9 +28,9 @@ main = do args <- getArgs
                          case parseMap s of
                            Left e -> error e
                            Right from -> do
-                             putStrLn $ "From: " ++ show from
+                             putStrLn $ "From:\n" ++ printMap from
+                             _ <- showSteps (walk from []) route
                              let (reason, to) = walkToEnd from route
-                             putStrLn $ "To: " ++ show to
                              putStrLn $ "Stopped because of: " ++ show reason
                              putStrLn $ "Score: " ++ show (score from route (reason, to))
             [] -> do s <- getContents
