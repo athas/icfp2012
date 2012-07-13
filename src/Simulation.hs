@@ -17,6 +17,7 @@ import Data.Maybe
 import qualified Data.Set as S
 import Control.Arrow
 import Control.Monad.State
+import Debug.Trace
 
 data StopReason = RobotAbort | RobotDead | RobotFinished
                   deriving (Eq, Ord, Show)
@@ -36,8 +37,7 @@ act m Wait  = return m
 act m a =
   case () of
     _ | isOpenLift m (x',y') -> put (Just RobotFinished) >> return m'
-      | isEmpty m (x',y') || isLambda m (x',y') ||
-        isLift m (x',y') || isEarth m (x',y') ->
+      | isEmpty m (x',y') || isLambda m (x',y') || isEarth m (x',y') ->
         return m'
       | x' == x+1 && y' == y && isRock m (x',y') && isEmpty m (x+2,y) ->
         return $ (setCell m' (x+2,y) Rock)
@@ -50,7 +50,7 @@ act m a =
 
 step :: MineMap -> Simulation
 step m = stopCheck m $
-         flip execState (newMap $ robot m) $
+         flip execState m $
          mapM_ update $
          liftM2 (flip (,)) [1..h] [1..w]
   where (w,h) = mapBounds m
