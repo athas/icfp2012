@@ -11,8 +11,8 @@ cellToChar Rock   = '*'
 cellToChar Wall   = '#'
 cellToChar Lambda = '\\'
 cellToChar Earth  = '.'
-cellToChar (Lift Closed) = 'O'
-cellToChar (Lift Open)   = 'L'
+cellToChar (Lift Closed) = 'L'
+cellToChar (Lift Open)   = 'O'
 cellToChar Robot  = 'R'
 
 chunks :: Int -> [a] -> [[a]]
@@ -22,14 +22,15 @@ chunks n = aux
       (a, b) | null a -> []
              | otherwise -> a : aux b
 
-printMap :: MineMap -> IO ()
-printMap m = putStrLn charMap
+-- printMap :: MineMap -> IO ()
+-- printMap m = putStrLn charMap
+--   where
+--     (w, h) = mapBounds m
+--     charMap = concatMap (++"\n") . chunks w .  M.elems . M.map cellToChar . cells $ m
+
+printMap m = putStrLn $ concatMap (++ "\n") . chunks w $ chars
   where
     (w, h) = mapBounds m
-    charMap = concatMap (++"\n") . chunks w .  M.elems . M.map cellToChar . cells $ m
+    chars = [ cellToChar (getCell m (i, j)) | i <- [1..w], j <- [1..h] ]
 
-main :: IO ()
-main = do
-  case parseMap "######\n#. *R#\n#  \\.#\n#\\ * #\nL  .\\#\n######" of
-    Left s -> print s
-    Right m -> printMap m
+Right foo = parseMap "######\n#. *R#\n#  \\.#\n#\\ * #\nL  .\\#\n######"
