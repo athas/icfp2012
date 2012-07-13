@@ -18,6 +18,7 @@ module MineMap
   , Action(..)
   , Route
   , routeToString
+  , stringToRoute
   ) where
 
 import Control.Arrow
@@ -115,3 +116,13 @@ routeToString = map f
         f MoveRight = 'R'
         f Wait = 'W'
         f Abort = 'A'
+
+stringToRoute :: String -> Maybe Route
+stringToRoute = mapM f
+  where f 'U' = Just MoveUp
+        f 'D' = Just MoveDown
+        f 'L' = Just MoveLeft
+        f 'R' = Just MoveRight
+        f 'W' = Just Wait
+        f 'A' = Just Abort
+        f _   = Nothing
