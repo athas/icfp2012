@@ -43,20 +43,25 @@ dumbHeuristic = Heuristic {
 isWalkable :: MineMap -> Pos -> Bool
 isWalkable m p = isEmpty m p || isEarth m p || isLambda m p || isOpenLift m p
 
+move :: Pos -> Action -> Pos
+move (x,y) MoveUp    = (x,y+1)
+move (x,y) MoveDown  = (x,y-1)
+move (x,y) MoveLeft  = (x-1,y)
+move (x,y) MoveRight = (x+1,y)
+move (x,y) Wait      = (x,y)
+
 walkRoute :: Pos -> Route -> Pos
 walkRoute = foldl move
-    where move (x,y) MoveUp    = (x,y+1)
-          move (x,y) MoveDown  = (x,y-1)
-          move (x,y) MoveLeft  = (x-1,y)
-          move (x,y) MoveRight = (x+1,y)
-          move (x,y) Wait      = (x,y)
+
+repeatsSelf :: Route -> Bool
+repeatsSelf r = length r > (S.size $ S.fromList $ scanl move (0,0) r)
 
 pathsTo :: MineMap -> Pos -> Pos -> [Route]
 pathsTo = genRoutes [[]]
     where genRoutes [] _ _ _ = [[Abort]] -- No walkable routes, abort
           genRoutes rs m s e =
-            let newrs = filter (\r -> isWalkable m $ walkRoute s r) $
+            let newrs = filter (\r -> (isWalkable m $ walkRoute s r) && (not $ repeatsSelf r)) $
                         concat $ map (\r -> map (:r)
                         [MoveUp,MoveDown,MoveLeft,MoveRight]) rs
-                lambdars = filter (\r -> e == walkRoute s r) newrs
-            in map reverse lambdars ++ genRoutes newrs m s e
+                targetrs = filter (\r -> e == walkRoute s r) newrs
+            in map reverse targetrs ++ genRoutes newrs m s e
