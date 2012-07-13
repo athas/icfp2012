@@ -1,4 +1,7 @@
-module MapParser where
+module MapParser
+  ( MapParser
+  , parseMap)
+  where
 
 import Control.Monad
 import qualified Data.Map as M
