@@ -4,6 +4,7 @@ module MapParser
   where
 
 import Control.Monad
+import Data.List
 import Data.Maybe
 import MineMap
 
@@ -21,8 +22,30 @@ parseChar 'R' = return Robot
 parseChar c = fail $ "Invalid character in map: '" ++ [c] ++ "'"
 
 parseMap :: String -> MapParser MineMap
-parseMap = mkMap <=< foldM combine (Nothing, newMap (1,1))
-           . concatMap mkpos . zip [1..] . reverse . lines
+parseMap s = do metadata <- parseMetadata m
+                parseLayout (fromMaybe 0 $ lookup "Water" metadata)
+                            (fromMaybe 0 $ lookup "Flooding" metadata)
+                            (fromMaybe 10 $ lookup "Waterproof" metadata)
+                            l
+  where (l, m) = break (=="") $ lines s
+
+parseInt :: String -> MapParser Int
+parseInt s = case reads s of
+               (x, ""):_ -> return x
+               _ -> fail $ "'" ++ s ++ "' is not an integer"
+
+parseMetadata :: [String] -> MapParser [(String, Int)]
+parseMetadata = mapM parse . drop 1
+  where parse s | "Water" `isPrefixOf` s = parsenum "Water" s
+                | "Flooding" `isPrefixOf` s = parsenum "Flooding" s
+                | "Waterproof" `isPrefixOf` s = parsenum "Waterproof" s
+                | otherwise = fail $ "Invalid metadata: " ++ s
+        parsenum k s = do x <- parseInt (drop 1 $ dropWhile (/=' ') s)
+                          return (k, x)
+
+parseLayout :: Int -> Int -> Int -> [String] -> MapParser MineMap
+parseLayout w1 f w12 = mkMap <=< foldM combine (Nothing, newMap (1,1) w1 f w12)
+                       . concatMap mkpos . zip [1..] . reverse
   where mkpos (y,l) = zipWith (\x c -> ((x,y), c)) [1..] l
         combine (rp, m) (p, c) = do
           c' <- parseChar c

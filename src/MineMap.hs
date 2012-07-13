@@ -2,7 +2,7 @@ module MineMap
   ( Pos
   , LiftState(..)
   , Cell(..)
-  , MineMap (robot, cells, lambdas, rocks)
+  , MineMap(..)
   , newMap
   , mapBounds
   , getCell
@@ -39,11 +39,14 @@ data MineMap = MineMap { robot :: Pos
                        , lifts :: S.Set Pos
                        , rocks :: S.Set Pos
                        , lambdas :: S.Set Pos
+                       , water :: Int
+                       , flooding :: Int
+                       , waterproof :: Int
                        }
              deriving (Eq, Ord, Show)
 
-newMap :: Pos -> MineMap
-newMap p = MineMap p (M.singleton p Robot) S.empty S.empty S.empty
+newMap :: Pos -> Int -> Int -> Int -> MineMap
+newMap p = MineMap p (M.singleton p Robot) S.empty S.empty S.empty 
 
 mapBounds :: MineMap -> (Int, Int)
 mapBounds = (maximum *** maximum) . unzip . M.keys . cells
