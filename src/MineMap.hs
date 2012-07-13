@@ -2,7 +2,11 @@ module MineMap
   ( Pos
   , LiftState(..)
   , Cell(..)
-  , MineMap(..)) where
+  , MineMap(..)
+  , Action(..)
+  , Route
+  , routeToString
+  ) where
 
 import qualified Data.Map as M
 
@@ -16,3 +20,16 @@ data Cell = Earth | Robot | Wall | Rock | Lambda | LambdaLift LiftState | Empty
 
 data MineMap = MineMap Pos (M.Map Pos Cell)
              deriving (Eq, Ord, Show)
+
+data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort
+
+type Route = [Action]
+
+routeToString :: Route -> String
+routeToString = map f
+  where f MoveUp = 'U'
+        f MoveDown = 'D'
+        f MoveLeft = 'L'
+        f MoveRight = 'R'
+        f Wait = 'W'
+        f Abort = 'A'
