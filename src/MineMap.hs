@@ -15,6 +15,7 @@ module MineMap
   , Action(..)
   , Route
   , routeToString
+  , pathsTo
   ) where
 
 import qualified Data.Map as M
@@ -65,6 +66,9 @@ isEmpty = cellProp (==Empty) False
 isLambda :: MineMap -> Pos -> Bool
 isLambda = cellProp (==Lambda) False
 
+isWalkable :: MineMap -> Pos -> Bool
+isWalkable m p = isEmpty m p || isEarth m p || isLambda m p
+
 setCell :: MineMap -> Pos -> Cell -> MineMap
 setCell m p c = register m' p c
   where m' = maybe m (unregister m p) $ M.lookup p $ cells m
@@ -87,6 +91,7 @@ register m p c = case c of
   where m' = m { cells = M.insert p c (cells m) }
 
 data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort
+    deriving Show
 
 type Route = [Action]
 
@@ -98,3 +103,20 @@ routeToString = map f
         f MoveRight = 'R'
         f Wait = 'W'
         f Abort = 'A'
+
+walkRoute :: Pos -> Route -> Pos
+walkRoute = foldl move
+    where move (x,y) MoveUp    = (x,y+1)
+          move (x,y) MoveDown  = (x,y-1)
+          move (x,y) MoveLeft  = (x-1,y)
+          move (x,y) MoveRight = (x+1,y)
+          move (x,y) Wait      = (x,y)
+
+pathsTo :: MineMap -> Pos -> Pos -> [Route]
+pathsTo = genRoutes [[]]
+    where genRoutes rs m s e =
+            let newrs = filter (\r -> isWalkable m $ walkRoute s r) $
+                        concat $ map (\r -> map (:r)
+                        [MoveUp,MoveDown,MoveLeft,MoveRight,Wait]) rs
+                lambdars = filter (\r -> isLambda m $ walkRoute s r) newrs
+            in map reverse lambdars ++ genRoutes newrs m s e
