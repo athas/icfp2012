@@ -48,7 +48,8 @@ walkRoute = foldl move
 
 pathsTo :: MineMap -> Pos -> Pos -> [Route]
 pathsTo = genRoutes [[]]
-    where genRoutes rs m s e =
+    where genRoutes [] _ _ _ = [[Abort]] -- No walkable routes, abort
+          genRoutes rs m s e =
             let newrs = filter (\r -> isWalkable m $ walkRoute s r) $
                         concat $ map (\r -> map (:r)
                         [MoveUp,MoveDown,MoveLeft,MoveRight,Wait]) rs
