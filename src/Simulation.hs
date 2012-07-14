@@ -2,6 +2,9 @@ module Simulation
   ( StopReason(..)
   , SimState(..)
   , finished
+  , aborted
+  , dead
+  , stable
   , stateFromMap
   , walk
   , step
@@ -40,6 +43,15 @@ stateFromMap m = SimState { stopReason = Nothing
 
 finished :: SimState -> Bool
 finished = isJust . stopReason
+
+aborted :: SimState -> Bool
+aborted = (==Just RobotAbort) . stopReason
+
+dead :: SimState -> Bool
+dead = (==Just RobotDead) . stopReason
+
+stable :: SimState -> Bool
+stable sim = sim `step` Wait == sim
 
 move :: Pos -> Action -> Pos
 move (x,y) MoveLeft = (x-1,y)
@@ -107,8 +119,6 @@ stopCheck from sim | finished sim = sim
                    | squashed from to = sim { stopReason = Just RobotDead }
                    | otherwise = sim
   where to = mineMap sim
-
-
 
 walk :: SimState -> Route -> SimState
 walk = foldl step
