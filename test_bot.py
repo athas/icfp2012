@@ -50,7 +50,7 @@ def test_bot_on_all(*maps):
         lasted, onl_board, onl_score, route, out = test_bot(mapfile)
         try:
             diff = int(high_scores[mapfile].split(' ', 1)[0]) - onl_score
-            his = 'High scores: %s\nFarness from highest high score: %d' % (high_scores[mapfile], diff)
+            his = 'High scores: %s\nDistance from highest high score: %d' % (high_scores[mapfile], diff)
         except KeyError:
             his = 'No high scores.'
         print out
