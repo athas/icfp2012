@@ -45,7 +45,7 @@ removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score
     where path     = reverse $ steps s
           starts   = stateFromMap $ origMap s
           visited  = map (robot . mineMap) $ drop 1 $ scanl step starts path
-          vismap   = foldl (\m (p,i) -> M.insert p (i : M.findWithDefault [] p m) m) M.empty $ zip visited [0..]
+          vismap   = foldl (\m (p,i) -> M.insertWith (++) p [i] m) M.empty $ zip visited [0..]
           loops    = filter (uncurry (/=)) $ concat $ map (\(_,i) -> liftM2 (,) i i) $ M.toList vismap
           newpaths = map (\(i,j) -> take i path ++ drop j path) loops
           sims     = s : map (walk starts) newpaths
