@@ -4,6 +4,7 @@ module MapParser
   where
 
 import Control.Monad
+import Data.Char
 import Data.List
 import Data.Maybe
 import MineMap
@@ -30,7 +31,7 @@ parseMap s = do metadata <- parseMetadata m
   where (l, m) = break (=="") $ lines s
 
 parseInt :: String -> MapParser Int
-parseInt s = case reads s of
+parseInt s = case reads $ takeWhile (not . isSpace) s of
                (x, ""):_ -> return x
                _ -> fail $ "'" ++ s ++ "' is not an integer"
 
@@ -40,7 +41,7 @@ parseMetadata = mapM parse . drop 1
                 | "Flooding" `isPrefixOf` s = parsenum "Flooding" s
                 | "Waterproof" `isPrefixOf` s = parsenum "Waterproof" s
                 | otherwise = fail $ "Invalid metadata: " ++ s
-        parsenum k s = do x <- parseInt (drop 1 $ dropWhile (/=' ') s)
+        parsenum k s = do x <- parseInt (drop 1 $ dropWhile (not . isSpace) s)
                           return (k, x)
 
 parseLayout :: Int -> Int -> Int -> [String] -> MapParser MineMap
