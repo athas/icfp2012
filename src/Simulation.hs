@@ -82,7 +82,9 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
                 Just sim { mineMap = setCell m' (x+2,y) Rock }
               | x' == x-1 && y' == y && isRock m (x',y') && isEmpty m (x-2,y) ->
                 Just sim { mineMap = setCell m' (x-2,y) Rock }
-              | otherwise -> Nothing
+              | otherwise -> case getCell m (x',y') of
+                               Trampoline _ p -> Just sim { mineMap = setCell (setCell m' (x',y') Empty) p Robot }
+                               _              -> Just sim
 
 mapupdate :: SimState -> SimState
 mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }

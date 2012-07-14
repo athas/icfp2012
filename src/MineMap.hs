@@ -31,7 +31,7 @@ type Pos = (Int, Int)
 data LiftState = Open | Closed
                  deriving (Eq, Ord, Show)
 
-data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty
+data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty | Trampoline Char Pos | Target Int
             deriving (Eq, Ord, Show)
 
 data MineMap = MineMap { robot :: Pos
