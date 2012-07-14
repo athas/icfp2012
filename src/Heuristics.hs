@@ -30,11 +30,16 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
           let m' = mineMap sim
               dests = case nextLambda h m' of
                         [] -> S.toList $ lifts m'
-                        ls -> take 3 ls
-              sims' = map (routeTo h sim) dests
-          in trace ("trying lambdas " ++ show dests) $
-             if finished sim || null sims' then [sim]
-             else concatMap run sims'
+                        ls -> ls
+          in run' sim dests
+        run' sim dests = let proceeded sim' = length (steps sim') > length (steps sim) + 10
+                             sims' = map (routeTo h sim) $ take 3 dests
+                         in trace ("trying lambdas " ++ show dests) $
+                            if finished sim || null sims' then [sim]
+                            else if any proceeded sims'
+                                 then concatMap run sims'
+                                 else run' sim (drop 3 dests)
+
 
 fixProblem :: SimState -> SimState -- But better
 fixProblem = removeUselessLoops2 . removeUselessLoops

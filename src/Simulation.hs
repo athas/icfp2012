@@ -3,6 +3,7 @@ module Simulation
   , SimState(..)
   , finished
   , aborted
+  , won
   , dead
   , stable
   , stateFromMap
@@ -20,7 +21,7 @@ import qualified Data.Set as S
 import Control.Arrow
 import Control.Monad.State
 
-data StopReason = RobotAbort | RobotDead | RobotFinished
+data StopReason = RobotAbort | RobotDead | RobotWon
                   deriving (Eq, Ord, Show)
 
 data SimState = SimState { stopReason :: Maybe StopReason
@@ -46,6 +47,9 @@ finished = isJust . stopReason
 
 aborted :: SimState -> Bool
 aborted = (==Just RobotAbort) . stopReason
+
+won :: SimState -> Bool
+won = (==Just RobotWon) . stopReason
 
 dead :: SimState -> Bool
 dead = (==Just RobotDead) . stopReason
@@ -75,7 +79,7 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
             Abort -> Just sim { stopReason = Just RobotAbort }
             Wait  -> Just sim
             _
-              | isOpenLift m (x',y') -> Just sim { stopReason = Just RobotFinished
+              | isOpenLift m (x',y') -> Just sim { stopReason = Just RobotWon
                                                  , mineMap = m' }
               | isEmpty m (x',y') || isLambda m (x',y') || isEarth m (x',y') ->
                 Just sim { mineMap = m' }
@@ -138,7 +142,7 @@ walk = foldl step
 score :: SimState -> Int
 score sim =
   case stopReason sim of Just RobotDead -> base
-                         Just RobotFinished -> base + collected * 50
+                         Just RobotWon  -> base + collected * 50
                          _ -> base + collected * 25
   where collected = S.size (lambdas $ origMap sim) - S.size (lambdas $ mineMap sim)
         base = collected * 25 - length (steps sim)
