@@ -9,6 +9,7 @@ module Heuristics
 import MineMap
 import Simulation
 
+import Control.Monad
 import Debug.Trace
 import Data.Maybe
 import Data.List
@@ -23,7 +24,7 @@ data Heuristic = Heuristic {
 
 runHeuristic :: MineMap -> Heuristic -> Route
 runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
-                   run $ stateFromMap m
+                   map fixProblem $ run $ stateFromMap m
   where run :: SimState -> [SimState]
         run sim =
           let m' = mineMap sim
@@ -36,7 +37,19 @@ runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
              else concatMap run sims'
 
 fixProblem :: SimState -> SimState -- But better
-fixProblem = id
+fixProblem = removeUselessLoops
+
+removeUselessLoops :: SimState -> SimState
+removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score: " ++ (show $ score bestsim)) $
+                       if score bestsim > score s then removeUselessLoops bestsim else bestsim
+    where path     = reverse $ steps s
+          starts   = stateFromMap $ origMap s
+          visited  = map (robot . mineMap) $ scanl step starts path
+          vismap   = foldl (\m (p,i) -> M.insert p (i : M.findWithDefault [] p m) m) M.empty $ zip visited [0..]
+          loops    = filter (uncurry (/=)) $ concat $ map (\(_,i) -> liftM2 (,) i i) $ M.toList vismap
+          newpaths = map (\(i,j) -> take i path ++ drop j path) loops
+          sims     = s : map (walk starts) newpaths
+          bestsim  = maximumBy (comparing score) sims
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
