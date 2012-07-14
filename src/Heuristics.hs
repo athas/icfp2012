@@ -84,7 +84,7 @@ dumbHeuristic = Heuristic {
                   nextLambda = \m -> sortBy (comparing (distTo $ robot m)) $ S.toList $ lambdas m
                 , routeTo = \sim -> pathTo sim (robot $ mineMap sim)
                 }
-  where distTo (x1,y1) (x2,y2) = (x2-x1) + (y2-x1)
+  where distTo (x1,y1) (x2,y2) = (x2-x1) + (y2-y1)
 
 pathTo :: SimState -> Pos -> Pos -> SimState
 pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
