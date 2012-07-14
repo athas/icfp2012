@@ -96,7 +96,6 @@ mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }
             isEmpty m (x+1,y) && isEmpty m (x+1,y-1) =
               [((x,y), Empty), ((x+1,y-1), Rock)]
           | isRock m (x,y-1) &&
-            (not (isEmpty m (x+1,y)) || not (isEmpty m (x+1,y-1))) &&
             isEmpty m (x-1,y) && isEmpty m (x-1,y-1) =
               [((x,y), Empty), ((x-1,y-1), Rock)]
           | isLambda m (x,y-1) &&
