@@ -24,5 +24,5 @@ printMap m = unlines . reverse . zipWith addwater [1..] . chunks w $ chars
   where
     (w, h) = mapBounds m
     chars = [ cellToChar (getCell m (i, j)) | j <- [1..h], i <- [1..w] ]
-    addwater i l | i <= water m = l ++ "~"
+    addwater i l | i <= water m = "\27[1;34m" ++ l ++ "\27[0m"
                  | otherwise = l
