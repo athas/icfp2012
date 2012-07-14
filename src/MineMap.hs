@@ -48,7 +48,7 @@ data MineMap = MineMap { robot :: Pos
 
 newMap :: (Int, Int) -> Int -> Int -> Int -> MineMap
 newMap p = MineMap p m S.empty S.empty S.empty
-  where m = listArray ((1,1), p) (repeat Empty) // [(p, Robot)]
+  where m = listArray ((1,1), p) (repeat Wall) // [(p, Robot)]
 
 mapBounds :: MineMap -> (Int, Int)
 mapBounds = snd . bounds . cells
