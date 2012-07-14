@@ -10,6 +10,7 @@ module Simulation
   , step
   , trystep
   , score
+  , move
   ) where
 
 import MineMap
