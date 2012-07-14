@@ -8,6 +8,7 @@ module Simulation
   , stateFromMap
   , walk
   , step
+  , trystep
   , score
   ) where
 
@@ -61,26 +62,30 @@ move (x,y) MoveDown = (x,y-1)
 move (x,y) _ = (x,y)
 
 step :: SimState -> Action -> SimState
-step sim _ | finished sim = sim
-step sim a = mapupdate sim' { steps = a : steps sim' }
+step sim a = mapupdate $ fromMaybe sim $ sim `trystep` a
+
+trystep :: SimState -> Action -> Maybe SimState
+trystep sim _ | finished sim = Just sim
+trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
   where (x,y) = robot m
         (x',y') = move (x,y) a
         m = mineMap sim
         m' = setCell (mineMap sim) (x',y') Robot
         sim' =
           case a of
-            Abort -> sim { stopReason = Just RobotAbort }
-            Wait  -> sim
+            Abort -> Just sim { stopReason = Just RobotAbort }
+            Wait  -> Just sim
             _
-              | isOpenLift m (x',y') -> sim { stopReason = Just RobotFinished
-                                            , mineMap = m' }
+              | isOpenLift m (x',y') -> Just sim { stopReason = Just RobotFinished
+                                                 , mineMap = m' }
               | isEmpty m (x',y') || isLambda m (x',y') || isEarth m (x',y') ->
-                sim { mineMap = m' }
+                Just sim { mineMap = m' }
               | x' == x+1 && y' == y && isRock m (x',y') && isEmpty m (x+2,y) ->
-                sim { mineMap = setCell m' (x+2,y) Rock }
+                Just sim { mineMap = setCell m' (x+2,y) Rock }
               | x' == x-1 && y' == y && isRock m (x',y') && isEmpty m (x-2,y) ->
-                sim { mineMap = setCell m' (x-2,y) Rock }
-              | otherwise -> sim
+                Just sim { mineMap = setCell m' (x-2,y) Rock }
+              | otherwise -> Nothing
+
 
 mapupdate :: SimState -> SimState
 mapupdate sim = stopCheck m sim { mineMap = m' }

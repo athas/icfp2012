@@ -12,7 +12,6 @@ module MineMap
   , isWall
   , isRock
   , isLambda
-  , isWalkable
   , isLift
   , isOpenLift
   , isEmpty
@@ -23,11 +22,8 @@ module MineMap
   , stringToRoute
   ) where
 
-import Debug.Trace
 import Control.Arrow
 import Data.Array
-import Data.Maybe
-import qualified Data.Map as M
 import qualified Data.Set as S
 
 type Pos = (Int, Int)
@@ -56,48 +52,37 @@ newMap p = MineMap p m S.empty S.empty S.empty
 mapBounds :: MineMap -> (Int, Int)
 mapBounds = snd . bounds . cells
 
-inBounds :: Pos -> MineMap -> Bool
-inBounds (x,y) m = x > 0 && y > 0 && x <= mx && y <= my
-  where (mx, my) = mapBounds m
-
 getCell :: MineMap -> Pos -> Cell
-getCell m p@(x,y) = cells m ! p
+getCell m p = cells m ! p
 
-cellProp :: (Cell -> Bool) -> Bool -> MineMap -> Pos -> Bool
-cellProp f d m p = if p `inBounds` m then f (getCell m p) else d
+cellProp :: (Cell -> Bool) -> MineMap -> Pos -> Bool
+cellProp f m p = f (getCell m p)
 
 isWall :: MineMap -> Pos -> Bool
-isWall = cellProp (==Wall) True
+isWall = cellProp (==Wall)
 
 isRobot :: MineMap -> Pos -> Bool
-isRobot = cellProp (==Robot) False
+isRobot = cellProp (==Robot)
 
 isEarth :: MineMap -> Pos -> Bool
-isEarth = cellProp (==Earth) False
+isEarth = cellProp (==Earth)
 
 isLift :: MineMap -> Pos -> Bool
-isLift = cellProp f False
+isLift = cellProp f
   where f (Lift _) = True
         f _        = False
 
 isOpenLift :: MineMap -> Pos -> Bool
-isOpenLift = cellProp (==Lift Open) False
+isOpenLift = cellProp (==Lift Open)
 
 isRock :: MineMap -> Pos -> Bool
-isRock = cellProp (==Rock) False
+isRock = cellProp (==Rock)
 
 isEmpty :: MineMap -> Pos -> Bool
-isEmpty = cellProp (==Empty) False
+isEmpty = cellProp (==Empty)
 
 isLambda :: MineMap -> Pos -> Bool
-isLambda = cellProp (==Lambda) False
-
-isWalkable :: MineMap -> Pos -> Bool
-isWalkable = cellProp f False
-  where f Rock = False
-        f Wall = False
-        f (Lift Closed) = False
-        f _ = True
+isLambda = cellProp (==Lambda)
 
 setCell :: MineMap -> Pos -> Cell -> MineMap
 setCell m p c = changeMap m [(p,c)]

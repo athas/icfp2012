@@ -46,8 +46,7 @@ dumbHeuristic = Heuristic {
 
 pathTo :: SimState -> Pos -> Pos -> SimState
 pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
-  where m = mineMap sim
-        go :: M.Map Pos (SimState, Int) -> [(SimState, Int)] -> SimState
+  where go :: M.Map Pos (SimState, Int) -> [(SimState, Int)] -> SimState
         go seen []     = maybe (sim `step` Abort) fst (M.lookup to seen)
         go seen ((sim',cost):ns) =
           let (seen', ns') = foldl check (seen, ns) $ neighbors sim' cost
@@ -57,12 +56,11 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
             Just (_, cost') | cost >= cost' -> (seen, ns)
             _ -> (M.insert (robot $ mineMap sim') (sim',cost) seen,
                   (sim',cost):ns)
-        neighbors sim' cost =
-          filter worked $ map move' [MoveUp,MoveDown,MoveLeft,MoveRight]
-          where move' a = (sim'', cost+stepcost (mineMap sim') (robot $ mineMap sim''))
-                  where sim'' = sim' `step` a
-                worked (new, _) = robot (mineMap new) /= robot (mineMap sim')
-                                  && not (dead new)
+        neighbors sim' cost = mapMaybe move' [MoveUp,MoveDown,MoveLeft,MoveRight]
+          where move' a = case sim' `trystep` a of
+                            Just sim'' | not (dead sim'') ->
+                              Just (sim'', cost+stepcost (mineMap sim') (robot $ mineMap sim''))
+                            _ -> Nothing
         stepcost sim' p = case getCell sim' p of
                             Empty -> 1
                             Earth -> (-3)
