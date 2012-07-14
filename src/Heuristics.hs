@@ -44,7 +44,7 @@ removeUselessLoops2 :: SimState -> SimState
 removeUselessLoops2 s = trace ("rul2: Old score: " ++ (show $ score s) ++
                                "; Best score: " ++ (show $ score bestsim)) $
                        if score bestsim > score s
-                       then removeUselessLoops2 bestsim
+                       then fixProblem bestsim
                        else bestsim
     where path     = reverse $ steps s
           starts   = stateFromMap $ origMap s
