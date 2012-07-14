@@ -20,7 +20,9 @@ chunks n = aux
              | otherwise -> a : aux b
 
 printMap :: MineMap -> String
-printMap m = concatMap (++ "\n") . reverse . chunks w $ chars
+printMap m = unlines . reverse . zipWith addwater [1..] . chunks w $ chars
   where
     (w, h) = mapBounds m
     chars = [ cellToChar (getCell m (i, j)) | j <- [1..h], i <- [1..w] ]
+    addwater i l | i <= water m = l ++ "~"
+                 | otherwise = l
