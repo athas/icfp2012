@@ -84,34 +84,26 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
                 Just sim { mineMap = setCell m' (x-2,y) Rock }
               | otherwise -> Nothing
 
-
 mapupdate :: SimState -> SimState
 mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }
   where m = mineMap sim
-        m' = changeMap m $
-             concatMap update $
-             liftM2 (flip (,)) [1..h] [1..w]
-        (w,h) = mapBounds m
-        update (x,y)
-          | isRock m (x,y) && isEmpty m (x,y-1) =
-              [((x,y), Empty)
-              ,((x,y-1), Rock)]
-          | isRock m (x,y) && isRock m (x,y-1) &&
+        m' = changeMap m $ map ulifts (S.toList $ lifts m) ++
+                           concatMap urocks (S.toList $ rocks m)
+        urocks (x,y)
+          | isEmpty m (x,y-1) =
+            [((x,y), Empty), ((x,y-1), Rock)]
+          | isRock m (x,y-1) &&
             isEmpty m (x+1,y) && isEmpty m (x+1,y-1) =
-              [((x,y), Empty)
-               ,((x+1,y-1), Rock)]
-          | isRock m (x,y) && isRock m (x,y-1) &&
-            (not (isEmpty m (x+1,y)) || not (isEmpty m (x+1,y-1))) &&
+              [((x,y), Empty), ((x+1,y-1), Rock)]
+          | isRock m (x,y-1) &&
             isEmpty m (x-1,y) && isEmpty m (x-1,y-1) =
-              [((x,y), Empty)
-               ,((x-1,y-1), Rock)]
-          | isRock m (x,y) && isLambda m (x,y-1) &&
+              [((x,y), Empty), ((x-1,y-1), Rock)]
+          | isLambda m (x,y-1) &&
             isEmpty m (x+1,y) && isEmpty m (x+1,y-1) =
-              [((x,y), Empty)
-              ,((x+1,y-1), Rock)]
-          | isLift m (x,y) && S.null (lambdas m) =
-            [((x,y), Lift Open)]
+              [((x,y), Empty), ((x+1,y-1), Rock)]
           | otherwise = []
+        ulifts (x,y) | S.null (lambdas m) = ((x,y), Lift Open)
+                     | otherwise          = ((x,y), Lift Closed)
 
 squashed :: MineMap -> MineMap -> Bool
 squashed from to =
