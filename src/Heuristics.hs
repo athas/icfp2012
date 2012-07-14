@@ -19,19 +19,19 @@ import qualified Data.Set as S
 
 data Heuristic = Heuristic {
     nextLambda :: MineMap -> [Pos]
-  , routeTo :: SimState -> Pos -> [SimState]
+  , routeTo :: SimState -> Pos -> SimState
   }
 
 runHeuristic :: MineMap -> Heuristic -> Route
-runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
-                   map fixProblem $ run $ stateFromMap m
+runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
+                   run $ stateFromMap m
   where run :: SimState -> [SimState]
         run sim =
           let m' = mineMap sim
               dests = case nextLambda h m' of
                         [] -> S.toList $ lifts m'
                         ls -> take 3 ls
-              sims' = concatMap (take 3 . routeTo h sim) dests
+              sims' = map (routeTo h sim) dests
           in trace ("trying lambdas " ++ show dests) $
              if finished sim || null sims' then [sim]
              else concatMap run sims'
@@ -44,7 +44,7 @@ removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score
                        if score bestsim > score s then removeUselessLoops bestsim else bestsim
     where path     = reverse $ steps s
           starts   = stateFromMap $ origMap s
-          visited  = map (robot . mineMap) $ scanl step starts path
+          visited  = map (robot . mineMap) $ drop 1 $ scanl step starts path
           vismap   = foldl (\m (p,i) -> M.insert p (i : M.findWithDefault [] p m) m) M.empty $ zip visited [0..]
           loops    = filter (uncurry (/=)) $ concat $ map (\(_,i) -> liftM2 (,) i i) $ M.toList vismap
           newpaths = map (\(i,j) -> take i path ++ drop j path) loops
@@ -54,7 +54,7 @@ removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
                   nextLambda = \m -> sortBy (comparing (distTo $ robot m)) $ S.toList $ lambdas m
-                , routeTo = \sim p -> [pathTo sim (robot $ mineMap sim) p]
+                , routeTo = \sim -> pathTo sim (robot $ mineMap sim)
                 }
   where distTo (x1,y1) (x2,y2) = (x2-x1) + (y2-x1)
 
@@ -82,9 +82,9 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
                          Earth -> if y < h && isRock m (x,y+1)
                                   then 6
                                   else if (x > 1 && isRock m (x-1,y)) || (x < w && isRock m (x+1,y))
-                                       then -3 else 0
+                                       then -3 else -1
                          Rock  -> 4000
-                         Lambda -> (-3)
+                         Lambda -> -3
                          _     -> 1
           where (x,y) = p
                 (w,h) = mapBounds m
