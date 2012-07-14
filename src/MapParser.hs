@@ -44,10 +44,10 @@ parseMetadata = mapM parse . drop 1
                           return (k, x)
 
 parseLayout :: Int -> Int -> Int -> [String] -> MapParser MineMap
-parseLayout w1 f w12 l = mk l
+parseLayout w1 f w12 s = mk s
   where mk = mkMap <=< foldM combine (Nothing, newMap (w,h) w1 f w12)
              . concatMap mkpos . zip [1..] . reverse
-        (w, h) = (length (l!!0), length l)
+        (w, h) = (maximum (map length s), length s)
         mkpos (y,l) = zipWith (\x c -> ((x,y), c)) [1..] l
         combine (rp, m) (p, c) = do
           c' <- parseChar c
