@@ -18,7 +18,7 @@ import qualified Data.Set as S
 
 data Heuristic = Heuristic {
     nextLambda :: MineMap -> [Pos]
-  , routeTo :: MineMap -> Pos -> [Route]
+  , routeTo :: SimState -> Pos -> [SimState]
   }
 
 runHeuristic :: MineMap -> Heuristic -> Route
@@ -30,56 +30,42 @@ runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
               dests = case nextLambda h m' of
                         [] -> S.toList $ lifts m'
                         ls -> take 3 ls
-              routes = concatMap (take 3 . filter (not . null) . routeTo h m') dests
-          in -- trace ("trying lambdas " ++ show dests) $
-             -- trace ("with routes " ++ show routes) $
-             if finished sim || null routes then [sim]
-             else concatMap (run . walk sim) routes
+              sims' = concatMap (take 3 . routeTo h sim) dests
+          in trace ("trying lambdas " ++ show dests) $
+             if finished sim || null sims' then [sim]
+             else concatMap run sims'
+
+fixProblem :: SimState -> SimState -- But better
+fixProblem = id
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
                   nextLambda = S.toList . lambdas
-                , routeTo = \m p -> [pathTo m (robot m) p]
+                , routeTo = \sim p -> [pathTo sim (robot $ mineMap sim) p]
                 }
 
-move :: Pos -> Action -> Pos
-move (x,y) MoveUp    = (x,y+1)
-move (x,y) MoveDown  = (x,y-1)
-move (x,y) MoveLeft  = (x-1,y)
-move (x,y) MoveRight = (x+1,y)
-move (x,y) Wait      = (x,y)
-
-walkRoute :: Pos -> Route -> Pos
-walkRoute = foldl move
-
-repeatsSelf :: Route -> Bool
-repeatsSelf r = length r > (S.size $ S.fromList $ scanl move (0,0) r)
-
-pathsTo :: MineMap -> Pos -> Pos -> [Route]
-pathsTo = genRoutes [[]]
-    where genRoutes [] _ _ _ = [[Abort]] -- No walkable routes, abort
-          genRoutes rs m s e =
-            let newrs = filter (\r -> (isWalkable m $ walkRoute s r) && (not $ repeatsSelf r)) $
-                        concat $ map (\r -> map (:r)
-                        [MoveUp,MoveDown,MoveLeft,MoveRight]) rs
-                targetrs = filter (\r -> e == walkRoute s r) newrs
-            in map reverse targetrs ++ genRoutes newrs m s e
-
-pathTo :: MineMap -> Pos -> Pos -> Route
-pathTo m from to = reverse $ go (M.singleton from []) [(from, [])]
-  where go seen []     = fromMaybe [Abort] (M.lookup to seen)
-        go seen ((p,path):ns) =
-          let (seen', ns') = foldl check (seen, ns) $ neighbors p path
+pathTo :: SimState -> Pos -> Pos -> SimState
+pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
+  where m = mineMap sim
+        go :: M.Map Pos (SimState, Int) -> [(SimState, Int)] -> SimState
+        go seen []     = maybe (sim `step` Abort) fst (M.lookup to seen)
+        go seen ((sim',cost):ns) =
+          let (seen', ns') = foldl check (seen, ns) $ neighbors sim' cost
           in go seen' ns'
-        check (seen, ns) (p,path) = case M.lookup p seen of
-                                      Nothing -> (M.insert p path seen, (p,path):ns)
-                                      Just path' | length path >= length path' -> (seen, ns)
-                                                 | otherwise -> (M.insert p path seen, (p,path):ns)
-        neighbors p path = filter walkable $
-                           map (\a -> (move p a, a:path))
-                           [MoveUp,MoveDown,MoveLeft,MoveRight]
-        walkable (p@(x,y), path) = isWalkable m p || (isRock m p && rockmovable)
-          where rockmovable = case path of
-                                MoveRight:_ -> isEmpty m (x+1,y)
-                                MoveLeft:_ -> isEmpty m (x-1,y)
-                                _  -> False
+        check (seen, ns) (sim',cost) =
+          case M.lookup (robot $ mineMap sim') seen of
+            Just (_, cost') | cost >= cost' -> (seen, ns)
+            _ -> (M.insert (robot $ mineMap sim') (sim',cost) seen,
+                  (sim',cost):ns)
+        neighbors sim' cost =
+          filter worked $ map move' [MoveUp,MoveDown,MoveLeft,MoveRight]
+          where move' a = (sim'', cost+stepcost (mineMap sim') (robot $ mineMap sim''))
+                  where sim'' = sim' `step` a
+                worked (new, _) = robot (mineMap new) /= robot (mineMap sim')
+                                  && not (dead new)
+        stepcost sim' p = case getCell sim' p of
+                            Empty -> 1
+                            Earth -> (-3)
+                            Rock  -> 40
+                            Lift Open -> (-20)
+                            _     -> 1
