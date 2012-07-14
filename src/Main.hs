@@ -35,6 +35,18 @@ main = do args <- getArgs
                              let reason = stopReason sim
                              putStrLn $ "Stopped because of: " ++ show reason
                              putStrLn $ "Score: " ++ show (score sim)
+            [f] -> do s <- readFile f
+                      case parseMap s of
+                        Left e -> error e
+                        Right from -> do
+                          let route = solution from
+                          putStrLn $ "From:\n" ++ printMap from
+                          sim <- showSteps (stateFromMap from) route
+                          let reason = stopReason sim
+                          putStrLn $ "Stopped because of: " ++ show reason
+                          putStrLn $ "Score: " ++ show (score sim)
+                          putStrLn $ "Used route"
+                          putStrLn $ routeToString route
             [] -> do s <- getContents
                      case parseMap s of
                        Left e -> error e
