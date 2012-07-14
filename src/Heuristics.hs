@@ -32,14 +32,14 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
                         [] -> S.toList $ lifts m'
                         ls -> ls
           in run' sim dests
-        run' sim dests = let proceeded sim' = won sim' || rem sim' < rem sim
+        run' sim dests = let proceeded sim' = won sim' || lleft sim' < lleft sim
                              sims = map (routeTo h sim) $ take 3 dests
                          in trace ("trying lambdas " ++ show dests) $
                             if finished sim || null sims then [sim]
                             else case filter proceeded sims of
                                    [] -> run' sim $ drop 3 dests
                                    sims' -> concatMap run $ filter proceeded sims'
-        rem = S.size . lambdas . mineMap
+        lleft = S.size . lambdas . mineMap
 
 
 fixProblem :: SimState -> SimState -- But better
@@ -84,10 +84,10 @@ removeUselessLoops dirx s = if   score bestsim > score s
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
-                  nextLambda = \m -> sortBy (comparing (distTo $ robot m)) $ S.toList $ lambdas m
+                  nextLambda = \m -> sortBy (comparing (distTo m $ robot m)) $ S.toList $ lambdas m
                 , routeTo = \sim -> pathTo sim (robot $ mineMap sim)
                 }
-  where distTo (x1,y1) (x2,y2) = (x2-x1) + (y2-y1)
+  where distTo m (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1) + if belowRock m (x2,y2) then 1000 else 0
 
 pathTo :: SimState -> Pos -> Pos -> SimState
 pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
@@ -110,12 +110,16 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
                             _ -> Nothing
         stepcost m p = case getCell m p of
                          Empty -> 1
-                         Earth -> if y < h && isRock m (x,y+1)
-                                  then 6
-                                  else if (x > 1 && isRock m (x-1,y)) || (x < w && isRock m (x+1,y))
-                                       then -3 else -1
+                         Earth | belowRock m p -> 6
+                               | (x > 1 && isRock m (x-1,y)) || (x < w && isRock m (x+1,y)) -> -6
+                               | otherwise -> -1
                          Rock  -> 4000
-                         Lambda -> -3
+                         Lambda | belowRock m p -> 5
+                                | otherwise -> -3
                          _     -> 1
           where (x,y) = p
                 (w,h) = mapBounds m
+
+belowRock :: MineMap -> Pos -> Bool
+belowRock m (x,y) = y < h && isRock m (x,y+1)
+  where (w,h) = mapBounds m
