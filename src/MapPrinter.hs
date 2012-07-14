@@ -1,6 +1,7 @@
 module MapPrinter (printMap) where
 
 import MineMap
+import Data.List.Utils (replace)
 
 cellToChar :: Cell -> Char
 cellToChar Empty  = ' '
@@ -20,9 +21,12 @@ chunks n = aux
              | otherwise -> a : aux b
 
 printMap :: MineMap -> String
-printMap m = unlines . reverse . zipWith addwater [1..] . chunks w $ chars
+printMap m = unlines . reverse . map addcolor . zipWith addwater [1..] .
+             chunks w $ chars
   where
     (w, h) = mapBounds m
     chars = [ cellToChar (getCell m (i, j)) | j <- [1..h], i <- [1..w] ]
-    addwater i l | i <= water m = "\27[1;34m" ++ l ++ "\27[0m"
+    addwater i l | i <= water m = "\27[44m" ++ l ++ "\27[0m"
                  | otherwise = l
+    addcolor = replace "R" "\27[1;7;32mR\27[22;27;39m"  .
+               replace "\\" "\27[1;33m\\\27[22;39m"
