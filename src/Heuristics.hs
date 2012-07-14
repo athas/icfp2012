@@ -40,9 +40,10 @@ fixProblem = id
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
-                  nextLambda = S.toList . lambdas
+                  nextLambda = \m -> sortBy (comparing (distTo $ robot m)) $ S.toList $ lambdas m
                 , routeTo = \sim p -> [pathTo sim (robot $ mineMap sim) p]
                 }
+  where distTo (x1,y1) (x2,y2) = (x2-x1) + (y2-x1)
 
 pathTo :: SimState -> Pos -> Pos -> SimState
 pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
@@ -56,14 +57,21 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
             Just (_, cost') | cost >= cost' -> (seen, ns)
             _ -> (M.insert (robot $ mineMap sim') (sim',cost) seen,
                   (sim',cost):ns)
-        neighbors sim' cost = mapMaybe move' [MoveUp,MoveDown,MoveLeft,MoveRight]
+        neighbors sim' cost
+          | robot (mineMap sim') == to = []
+          | otherwise = mapMaybe move' [MoveUp,MoveDown,MoveLeft,MoveRight]
           where move' a = case sim' `trystep` a of
                             Just sim'' | not (dead sim'') ->
                               Just (sim'', cost+stepcost (mineMap sim') (robot $ mineMap sim''))
                             _ -> Nothing
-        stepcost sim' p = case getCell sim' p of
-                            Empty -> 1
-                            Earth -> (-3)
-                            Rock  -> 40
-                            Lift Open -> (-20)
-                            _     -> 1
+        stepcost m p = case getCell m p of
+                         Empty -> 1
+                         Earth -> if y < h && isRock m (x,y+1)
+                                  then 6
+                                  else if (x > 1 && isRock m (x-1,y)) || (x < w && isRock m (x+1,y))
+                                       then -3 else 0
+                         Rock  -> 4000
+                         Lambda -> (-3)
+                         _     -> 1
+          where (x,y) = p
+                (w,h) = mapBounds m
