@@ -37,10 +37,37 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
              else concatMap run sims'
 
 fixProblem :: SimState -> SimState -- But better
-fixProblem = removeUselessLoops
+fixProblem = removeUselessLoops2 . removeUselessLoops
+
+
+removeUselessLoops2 :: SimState -> SimState
+removeUselessLoops2 s = trace ("rul2: Old score: " ++ (show $ score s) ++
+                               "; Best score: " ++ (show $ score bestsim)) $
+                       if score bestsim > score s
+                       then removeUselessLoops2 bestsim
+                       else bestsim
+    where path     = reverse $ steps s
+          starts   = stateFromMap $ origMap s
+          visited  = map (robot . mineMap) $ drop 1 $ scanl step starts path
+          vismap   = foldl (\m (p, i) -> M.insertWith (++) p [i] m) M.empty $ zip visited [0..]
+
+          pis = concat $ map (\(p, is) -> zip (repeat p) is) $ M.toList vismap
+          pid = [ (p, dir, i, j) | (p, i) <- pis
+                                 , dir <- dirs
+                                 , let q = move p dir
+                                 , j <- M.findWithDefault [] q vismap
+                                 , j > i + 1 ]
+
+          toPath (p, dir, i, j) = take i path ++ [dir] ++ drop (j - 1) path
+          newpaths = map toPath pid
+          sims     = s : map (walk starts) newpaths
+          bestsim  = maximumBy (comparing score) sims
+
+          dirs = [MoveLeft, MoveRight, MoveUp, MoveDown]
+
 
 removeUselessLoops :: SimState -> SimState
-removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score: " ++ (show $ score bestsim)) $
+removeUselessLoops s = trace ("rul: Old score: " ++ (show $ score s) ++ "; Best score: " ++ (show $ score bestsim)) $
                        if score bestsim > score s then removeUselessLoops bestsim else bestsim
     where path     = reverse $ steps s
           starts   = stateFromMap $ origMap s
@@ -50,6 +77,7 @@ removeUselessLoops s = trace ("Old score: " ++ (show $ score s) ++ "; Best score
           newpaths = map (\(i,j) -> take i path ++ drop j path) loops
           sims     = s : map (walk starts) newpaths
           bestsim  = maximumBy (comparing score) sims
+
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
