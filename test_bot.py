@@ -14,7 +14,7 @@ def get_online_score(mapfile, route):
                           data=urllib.urlencode({'mapfile': mapfile, 'route': route}))
     rep = urllib2.urlopen(req).read()
     board = re.search(r'<pre>(.*)</pre>', rep, re.M | re.S).groups()[0]
-    score = re.search(r'Score: (-?[0-9]*)', rep).groups()[0]
+    score = int(re.search(r'Score: (-?[0-9]*)', rep).groups()[0])
     return (board, score)
 
 def download_high_scores():
@@ -27,41 +27,40 @@ def download_high_scores():
     return nscores
 
 def test_bot(mapfile):
-    sp = subprocess.Popen(['./Main', os.path.join('..', 'task', mapfile + '.map')],
+    path = os.path.join('..', 'task', mapfile + '.map')
+    sp = subprocess.Popen(['./Main', path, 'dummy', 'dummy'],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     start = time.time()
     out, err = sp.communicate()
     end = time.time()
     lasted = end - start
-    out = out.rsplit('\n\nRoute:\n', 1)[1].strip()
-    route = re.search(r'^Used route\n(.+)$', out, re.M).group(1)
+    route = re.search(r'Used route: (.+)', out).group(1)
     onl_board, onl_score = get_online_score(mapfile, route)
     return lasted, onl_board, onl_score, route, out
 
-def test_bot_on_all():
+def test_bot_on_all(*maps):
     os.chdir('src')
     subprocess.call(['ghc', 'Main.hs'])
     high_scores = download_high_scores()
-    maps = [os.path.basename(m[:-4]) for m in glob('../task/*.map')]
-    maps.sort()
+    if not maps:
+        maps = [os.path.basename(m[:-4]) for m in glob('../task/*.map')]
+        maps.sort()
     for mapfile in maps:
-        print 'Testing %s...' % mapfile
+        print 'Testing %r...' % mapfile
+        lasted, onl_board, onl_score, route, out = test_bot(mapfile)
         try:
-            lasted, onl_board, onl_score, route, out = test_bot(mapfile)
-        except Exception as e:
-            print >>sys.stderr, e
-            continue
-        try:
-            his = 'High scores: ' + high_scores[mapfile]
+            diff = int(high_scores[mapfile].split(' ', 1)[0]) - onl_score
+            his = 'High scores: %s\nFarness from highest high score: %d' % (high_scores[mapfile], diff)
         except KeyError:
             his = 'No high scores.'
         print out
-        print 'Took %f seconds' % lasted
+#        print 'Online board: \n%s' % onl_board
+
+        print 'Took %f seconds (with simulator on)' % lasted
         print 'Online score: %s' % onl_score
         print his
-        print 'Online board: \n%s' % onl_board
         
 
 if __name__ == '__main__':
-    test_bot_on_all()
+    test_bot_on_all(*sys.argv[1:])
 
