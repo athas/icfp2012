@@ -2,14 +2,18 @@ module Heuristics
   ( Heuristic(..)
   , runHeuristic
   , dumbHeuristic
+  , pathTo
   )
   where
 
 import MineMap
 import Simulation
 
+import Debug.Trace
+import Data.Maybe
 import Data.List
 import Data.Ord
+import qualified Data.Map as M
 import qualified Data.Set as S
 
 data Heuristic = Heuristic {
@@ -32,11 +36,8 @@ runHeuristic m h = reverse $ steps $ maximumBy (comparing score) $
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
                   nextLambda = S.toList . lambdas
-                , routeTo = \m p -> pathsTo m (robot m) p
+                , routeTo = \m p -> [pathTo m (robot m) p]
                 }
-
-isWalkable :: MineMap -> Pos -> Bool
-isWalkable m p = isEmpty m p || isEarth m p || isLambda m p || isOpenLift m p
 
 move :: Pos -> Action -> Pos
 move (x,y) MoveUp    = (x,y+1)
@@ -60,3 +61,17 @@ pathsTo = genRoutes [[]]
                         [MoveUp,MoveDown,MoveLeft,MoveRight]) rs
                 targetrs = filter (\r -> e == walkRoute s r) newrs
             in map reverse targetrs ++ genRoutes newrs m s e
+
+pathTo :: MineMap -> Pos -> Pos -> Route
+pathTo m from to = reverse $ go (M.singleton from []) [(from, [])]
+  where go seen []     = fromMaybe [] (M.lookup to seen)
+        go seen ((p,path):ns) =
+          let (seen', ns') = foldl check (seen, ns) $ neighbors p path
+          in go seen' ns'
+        check (seen, ns) (p,path) = case M.lookup p seen of
+                                      Nothing -> (M.insert p path seen, (p,path):ns)
+                                      Just path' | length path >= length path' -> (seen, ns)
+                                                 | otherwise -> (M.insert p path seen, (p,path):ns)
+        neighbors p path = filter (isWalkable m . fst) $
+                           map (\a -> (move p a, a:path))
+                           [MoveUp,MoveDown,MoveLeft,MoveRight]

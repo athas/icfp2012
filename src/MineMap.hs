@@ -12,6 +12,7 @@ module MineMap
   , isWall
   , isRock
   , isLambda
+  , isWalkable
   , isLift
   , isOpenLift
   , isEmpty
@@ -22,7 +23,9 @@ module MineMap
   , stringToRoute
   ) where
 
+import Debug.Trace
 import Control.Arrow
+import Data.Array
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -36,7 +39,7 @@ data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty
             deriving (Eq, Ord, Show)
 
 data MineMap = MineMap { robot :: Pos
-                       , cells :: M.Map Pos Cell
+                       , cells :: Array Pos Cell
                        , lifts :: S.Set Pos
                        , rocks :: S.Set Pos
                        , lambdas :: S.Set Pos
@@ -46,21 +49,22 @@ data MineMap = MineMap { robot :: Pos
                        }
              deriving (Eq, Ord, Show)
 
-newMap :: Pos -> Int -> Int -> Int -> MineMap
-newMap p = MineMap p (M.singleton p Robot) S.empty S.empty S.empty 
-
-changeMap :: MineMap -> [(Pos, Cell)] -> MineMap
-changeMap = foldl add
-  where add m' (p,c) = setCell m' p c
+newMap :: (Int, Int) -> Int -> Int -> Int -> MineMap
+newMap p = MineMap p m S.empty S.empty S.empty
+  where m = listArray ((1,1), p) (repeat Wall) // [(p, Robot)]
 
 mapBounds :: MineMap -> (Int, Int)
-mapBounds = (maximum *** maximum) . unzip . M.keys . cells
+mapBounds = snd . bounds . cells
+
+inBounds :: Pos -> MineMap -> Bool
+inBounds (x,y) m = x > 0 && y > 0 && x <= mx && y <= my
+  where (mx, my) = mapBounds m
 
 getCell :: MineMap -> Pos -> Cell
-getCell m p = fromMaybe (error "Out of bounds") $ M.lookup p $ cells m
+getCell m p@(x,y) = cells m ! p
 
 cellProp :: (Cell -> Bool) -> Bool -> MineMap -> Pos -> Bool
-cellProp f d m p = maybe d f $ M.lookup p $ cells m
+cellProp f d m p = if p `inBounds` m then f (getCell m p) else d
 
 isWall :: MineMap -> Pos -> Bool
 isWall = cellProp (==Wall) True
@@ -88,30 +92,37 @@ isEmpty = cellProp (==Empty) False
 isLambda :: MineMap -> Pos -> Bool
 isLambda = cellProp (==Lambda) False
 
+isWalkable :: MineMap -> Pos -> Bool
+isWalkable = cellProp f False
+  where f Rock = False
+        f Wall = False
+        f (Lift Closed) = False
+        f _ = True
+
 setCell :: MineMap -> Pos -> Cell -> MineMap
-setCell m p c = register m' p c
-  where m' = maybe m (unregister m p) $ M.lookup p $ cells m
+setCell m p c = changeMap m [(p,c)]
 
-unregister :: MineMap -> Pos -> Cell -> MineMap
-unregister m p c = case c of
-                     Lift _ -> m' { lifts = S.delete p (lifts m') }
-                     Rock   -> m' { rocks = S.delete p (rocks m') }
-                     Lambda -> m' { lambdas = S.delete p (lambdas m') }
-                     _      -> m'
-  where m' = m { cells = M.delete p (cells m) }
+changeMap :: MineMap -> [(Pos, Cell)] -> MineMap
+changeMap m l = m' { cells = cells m' // l' }
+  where (m', l') = foldl change (m, []) l
+        change (m'', l'') (p, c) = second (++l'') $ register m'' p c
 
-register :: MineMap -> Pos -> Cell -> MineMap
+register :: MineMap -> Pos -> Cell -> (MineMap, [(Pos, Cell)])
 register m p c = case c of
-                   Lift _ -> m' { lifts = S.insert p (lifts m') }
-                   Rock   -> m' { rocks = S.insert p (rocks m') }
-                   Lambda -> m' { lambdas = S.insert p (lambdas m') }
-                   Robot  -> m' { robot = p
-                                , cells = if isRobot m' (robot m') && p /= robot m'
-                                          then M.insert (robot m') Empty (cells m')
-                                          else cells m'
-                                }
-                   _      -> m'
-  where m' = m { cells = M.insert p c (cells m) }
+                   Lift _ -> (m' { lifts = S.insert p (lifts m') }, l)
+                   Rock   -> (m' { rocks = S.insert p (rocks m') }, l)
+                   Lambda -> (m' { lambdas = S.insert p (lambdas m') }, l)
+                   Robot  -> (m' { robot = p },
+                              if isRobot m' (robot m) && p /= robot m'
+                              then (robot m', Empty) : l
+                              else l)
+                   _      -> (m', l)
+  where l = [(p,c)]
+        m' = case getCell m p of
+               Lift _ -> m { lifts = S.delete p (lifts m) }
+               Rock -> m { rocks = S.delete p (rocks m) }
+               Lambda -> m { lambdas = S.delete p (lambdas m) }
+               _ -> m
 
 data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort
               deriving (Eq, Ord, Show)
