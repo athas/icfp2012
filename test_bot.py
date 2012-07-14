@@ -43,8 +43,8 @@ def test_bot_on_all(*maps):
     subprocess.call(['ghc', 'Main.hs'])
     high_scores = download_high_scores()
     if not maps:
-        maps = [os.path.basename(m[:-4]) for m in glob('../task/*.map')]
-        maps.sort()
+        maps = glob('../task/*.map')
+    maps = [os.path.basename(m[:-4]) for m in maps]
     for mapfile in maps:
         print 'Testing %r...' % mapfile
         lasted, onl_board, onl_score, route, out = test_bot(mapfile)
