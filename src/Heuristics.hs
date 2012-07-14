@@ -9,6 +9,7 @@ module Heuristics
 import MineMap
 import Simulation
 
+import Control.Arrow
 import Control.Monad
 import Debug.Trace
 import Data.Maybe
@@ -31,14 +32,14 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
               dests = case nextLambda h m' of
                         [] -> S.toList $ lifts m'
                         ls -> ls
-          in run' sim dests
+          in run' sim $ take 3 dests
         run' sim dests = let proceeded sim' = won sim' || lleft sim' < lleft sim
                              sims = map (routeTo h sim) $ take 3 dests
                          in trace ("trying lambdas " ++ show dests) $
                             if finished sim || null sims then [sim]
                             else case filter proceeded sims of
                                    [] -> run' sim $ drop 3 dests
-                                   sims' -> concatMap run $ filter proceeded sims'
+                                   sims' -> concatMap run $ take 2 sims'
         lleft = S.size . lambdas . mineMap
 
 
@@ -84,10 +85,25 @@ removeUselessLoops dirx s = if   score bestsim > score s
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
-                  nextLambda = \m -> sortBy (comparing (distTo m $ robot m)) $ S.toList $ lambdas m
+                  nextLambda = targets
                 , routeTo = \sim -> pathTo sim (robot $ mineMap sim)
                 }
-  where distTo m (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1) + if belowRock m (x2,y2) then 1000 else 0
+
+
+targets :: MineMap -> [Pos]
+targets m =
+  case ls of
+    []    -> []
+    ((d,_):_) -> let close = d + 2
+                     approx x y
+                       | fst x < close || fst y < close = False
+                       | otherwise = True -- abs (fst x-fst y) < trsh
+                 in map snd $ concatMap (take 1) $ groupBy approx ls
+  where ls = sortBy (comparing fst) $ map (value &&& id) $ S.toList $ lambdas m
+        value p = dist p
+        dist = distTo (robot m)
+        distTo (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1)
+        trsh = uncurry max (mapBounds m) `div` 2
 
 pathTo :: SimState -> Pos -> Pos -> SimState
 pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
@@ -118,8 +134,8 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
                                 | otherwise -> -3
                          _     -> 1
           where (x,y) = p
-                (w,h) = mapBounds m
+                (w,_) = mapBounds m
 
 belowRock :: MineMap -> Pos -> Bool
 belowRock m (x,y) = y < h && isRock m (x,y+1)
-  where (w,h) = mapBounds m
+  where (_,h) = mapBounds m
