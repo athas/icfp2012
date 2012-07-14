@@ -47,7 +47,7 @@ fixProblem s = fixWith fixes
     where
         fixWith []         = s
         fixWith ((f,l):fs) = let ns = f s
-                             in  if   ns == s
+                             in  if   score ns <= score s
                                  then fixWith fs
                                  else trace (l ++ ": " ++ (show $ score s) ++ " --> " ++ (show $ score ns)) $
                                       fixProblem ns
