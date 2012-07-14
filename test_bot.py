@@ -6,6 +6,8 @@ import urllib2
 import urllib
 import subprocess
 import re
+import time
+from glob import glob
 
 def get_online_score(mapfile, route):
     req = urllib2.Request(url='http://undecidable.org.uk/~edwin/cgi-bin/weblifter.cgi',
@@ -25,18 +27,41 @@ def download_high_scores():
     return nscores
 
 def test_bot(mapfile):
+    sp = subprocess.Popen(['./Main', os.path.join('..', 'task', mapfile + '.map')],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    start = time.time()
+    out, err = sp.communicate()
+    end = time.time()
+    lasted = end - start
+    out = out.rsplit('\n\nRoute:\n', 1)[1].strip()
+    route = re.search(r'^Used route\n(.+)$', out, re.M).group(1)
+    onl_board, onl_score = get_online_score(mapfile, route)
+    return lasted, onl_board, onl_score, route, out
+
+def test_bot_on_all():
     os.chdir('src')
-    out, err = subprocess.Popen(['runhaskell', 'Main.hs'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-    if err:
-        print >> sys.stderr, err
-        return
-    print out
-    return
-    mapid = os.path.basename(mapfile)
-    onl_board, onl_score = get_online_score(mapid, route)
+    subprocess.call(['ghc', 'Main.hs'])
     high_scores = download_high_scores()
-    print route
+    maps = [os.path.basename(m[:-4]) for m in glob('../task/*.map')]
+    maps.sort()
+    for mapfile in maps:
+        print 'Testing %s...' % mapfile
+        try:
+            lasted, onl_board, onl_score, route, out = test_bot(mapfile)
+        except Exception as e:
+            print >>sys.stderr, e
+            continue
+        try:
+            his = 'High scores: ' + high_scores[mapfile]
+        except KeyError:
+            his = 'No high scores.'
+        print out
+        print 'Took %f seconds' % lasted
+        print 'Online score: %s' % onl_score
+        print his
+        print 'Online board: \n%s' % onl_board
+        
 
 if __name__ == '__main__':
-    test_bot(sys.argv[1])
+    test_bot_on_all()
 
