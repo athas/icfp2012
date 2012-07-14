@@ -42,15 +42,28 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
 
 
 fixProblem :: SimState -> SimState -- But better
-fixProblem = removeUselessLoops
+fixProblem s = fixWith fixes
+    where
+        fixWith []         = s
+        fixWith ((f,l):fs) = let ns = f s
+                             in  if   ns == s
+                                 then fixWith fs
+                                 else trace (l ++ ": " ++ (show $ score s) ++ " --> " ++ (show $ score ns)) $
+                                      fixProblem ns
 
+        fixes = [ (rul0, "rul0"), (rul1, "rul1"), (rul2, "rul2") ]
 
-removeUselessLoops :: SimState -> SimState
-removeUselessLoops s = trace ("rul: Old score: " ++ (show $ score s) ++
-                               "; Best score: " ++ (show $ score bestsim)) $
-                       if score bestsim > score s
-                       then removeUselessLoops bestsim
-                       else bestsim
+        rul0 = removeUselessLoops [[]]
+        rul1 = removeUselessLoops $ map return dirs
+        rul2 = removeUselessLoops $ filter (not . cancelOut) $ liftM2 (\x y -> [x,y]) dirs dirs
+
+        dirs = [MoveLeft, MoveRight, MoveUp, MoveDown]
+        cancelOut r = foldl move (0,0) r == (0,0)
+
+removeUselessLoops :: [Route] -> SimState -> SimState
+removeUselessLoops dirx s = if   score bestsim > score s
+                            then removeUselessLoops dirx bestsim
+                            else bestsim
     where path     = reverse $ steps s
           starts   = stateFromMap $ origMap s
           visited  = map (robot . mineMap) $ drop 1 $ scanl step starts path
@@ -67,10 +80,6 @@ removeUselessLoops s = trace ("rul: Old score: " ++ (show $ score s) ++
           newpaths = map toPath pid
           sims     = s : map (walk starts) newpaths
           bestsim  = maximumBy (comparing score) sims
-
-          dirs = [MoveLeft, MoveRight, MoveUp, MoveDown]
-          dirx = [[]] ++ map return dirs ++ liftM2 (\x y -> [x,y]) dirs dirs
-
 
 dumbHeuristic :: Heuristic
 dumbHeuristic = Heuristic {
