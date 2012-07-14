@@ -6,6 +6,7 @@ module MineMap
   , newMap
   , changeMap
   , mapBounds
+  , isValidPos
   , getCell
   , isEarth
   , isRobot
@@ -51,6 +52,11 @@ newMap p = MineMap p m S.empty S.empty S.empty
 
 mapBounds :: MineMap -> (Int, Int)
 mapBounds = snd . bounds . cells
+
+isValidPos :: MineMap -> Pos -> Bool
+isValidPos m (x, y) = 1 <= x && x <= mX && 1 <= y && y <= mY
+  where
+    (mX, mY) = mapBounds m
 
 getCell :: MineMap -> Pos -> Cell
 getCell m p = cells m ! p
