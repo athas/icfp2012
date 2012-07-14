@@ -18,7 +18,7 @@ showSteps sim [] = return sim
 showSteps sim (a:as) = do putStr "\27[2J"
                           putStr "\27[H"
                           putStrLn $ printMap $ mineMap sim'
-                          threadDelay 500000
+                          threadDelay 250000
                           showSteps sim' as
   where sim' = sim `step` a
 
