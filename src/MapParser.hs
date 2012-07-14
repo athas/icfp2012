@@ -37,16 +37,16 @@ parseInt s = case reads $ takeWhile (not . isSpace) s of
 
 parseMetadata :: [String] -> MapParser [(String, Int)]
 parseMetadata = mapM parse . drop 1
-  where parse s | "Water" `isPrefixOf` s = parsenum "Water" s
+  where parse s | "Waterproof" `isPrefixOf` s = parsenum "Waterproof" s
+                | "Water" `isPrefixOf` s = parsenum "Water" s
                 | "Flooding" `isPrefixOf` s = parsenum "Flooding" s
-                | "Waterproof" `isPrefixOf` s = parsenum "Waterproof" s
                 | otherwise = fail $ "Invalid metadata: " ++ s
         parsenum k s = do x <- parseInt (drop 1 $ dropWhile (not . isSpace) s)
                           return (k, x)
 
 parseLayout :: Int -> Int -> Int -> [String] -> MapParser MineMap
-parseLayout w1 f w12 s = mk s
-  where mk = mkMap <=< foldM combine (Nothing, newMap (w,h) w1 f w12)
+parseLayout w1 f w2 s = mk s
+  where mk = mkMap <=< foldM combine (Nothing, newMap (w,h) w1 f w2)
              . concatMap mkpos . zip [1..] . reverse
         (w, h) = (maximum (map length s), length s)
         mkpos (y,l) = zipWith (\x c -> ((x,y), c)) [1..] l
