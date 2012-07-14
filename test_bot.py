@@ -44,13 +44,13 @@ def test_bot_on_all(*maps):
     high_scores = download_high_scores()
     if not maps:
         maps = glob('../task/*.map')
-    maps = [os.path.basename(m[:-4]) for m in maps]
+    maps = [os.path.basename(m[:-4] if m.endswith('.map') else m) for m in maps]
     for mapfile in maps:
         print 'Testing %r...' % mapfile
         lasted, onl_board, onl_score, route, out = test_bot(mapfile)
         try:
             diff = int(high_scores[mapfile].split(' ', 1)[0]) - onl_score
-            his = 'High scores: %s\nFarness from highest high score: %d' % (high_scores[mapfile], diff)
+            his = 'High scores: %s\nDistance from highest high score: %d' % (high_scores[mapfile], diff)
         except KeyError:
             his = 'No high scores.'
         print out
