@@ -13,13 +13,15 @@ import System.Environment
 solution :: MineMap -> Route
 solution m = runHeuristic m dumbHeuristic
 
-showSteps :: SimState -> Route -> IO SimState
-showSteps sim [] = return sim
-showSteps sim (a:as) = do putStr "\27[2J"
-                          putStr "\27[H"
-                          putStrLn $ printMap $ mineMap sim'
-                          threadDelay 250000
-                          showSteps sim' as
+showSteps :: SimState -> Route -> Route -> IO SimState
+showSteps sim _ [] = return sim
+showSteps sim orig (a:as) = do putStr "\27[2J"
+                               putStr "\27[H"
+                               putStrLn $ printMap $ mineMap sim'
+                               putStrLn "Route:"
+                               putStrLn $ routeToString orig
+                               threadDelay 250000
+                               showSteps sim' orig as
   where sim' = sim `step` a
 
 main :: IO ()
@@ -31,7 +33,7 @@ main = do args <- getArgs
                            Left e -> error e
                            Right from -> do
                              putStrLn $ "From:\n" ++ printMap from
-                             sim <- showSteps (stateFromMap from) route
+                             sim <- showSteps (stateFromMap from) route route
                              let reason = stopReason sim
                              putStrLn $ "Stopped because of: " ++ show reason
                              putStrLn $ "Score: " ++ show (score sim)
@@ -41,7 +43,7 @@ main = do args <- getArgs
                         Right from -> do
                           let route = solution from
                           putStrLn $ "From:\n" ++ printMap from
-                          sim <- showSteps (stateFromMap from) route
+                          sim <- showSteps (stateFromMap from) route route
                           let reason = stopReason sim
                           putStrLn $ "Stopped because of: " ++ show reason
                           putStrLn $ "Score: " ++ show (score sim)
