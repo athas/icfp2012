@@ -23,7 +23,6 @@ data StopReason = RobotAbort | RobotDead | RobotFinished
                   deriving (Eq, Ord, Show)
 
 data SimState = SimState { stopReason :: Maybe StopReason
-                         , waterLevel :: Int
                          , underWater :: Int
                          , waterTimer :: Int
                          , mineMap :: MineMap
@@ -34,7 +33,6 @@ data SimState = SimState { stopReason :: Maybe StopReason
 
 stateFromMap :: MineMap -> SimState
 stateFromMap m = SimState { stopReason = Nothing
-                          , waterLevel = water m
                           , underWater = 0
                           , waterTimer = 0
                           , mineMap = m
@@ -62,7 +60,7 @@ move (x,y) MoveDown = (x,y-1)
 move (x,y) _ = (x,y)
 
 step :: SimState -> Action -> SimState
-step sim a = mapupdate $ fromMaybe sim $ sim `trystep` a
+step sim a = fromMaybe (mapupdate sim) $ sim `trystep` a
 
 trystep :: SimState -> Action -> Maybe SimState
 trystep sim _ | finished sim = Just sim
@@ -88,7 +86,7 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
 
 
 mapupdate :: SimState -> SimState
-mapupdate sim = stopCheck m sim { mineMap = m' }
+mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }
   where m = mineMap sim
         m' = changeMap m $
              concatMap update $
@@ -119,11 +117,25 @@ squashed :: MineMap -> MineMap -> Bool
 squashed from to =
   isRock to (second (+1) (robot to)) && isEmpty from (second (+1) (robot to))
 
+drowned :: SimState -> Bool
+drowned sim = underWater sim > waterproof m
+  where m = mineMap sim
+
 stopCheck :: MineMap -> SimState -> SimState
 stopCheck from sim | finished sim = sim
-                   | squashed from to = sim { stopReason = Just RobotDead }
+                   | squashed from to || drowned sim =
+                     sim { stopReason = Just RobotDead }
                    | otherwise = sim
   where to = mineMap sim
+
+waterflow :: SimState -> SimState
+waterflow sim = sim { underWater = if snd (robot m) <= water m
+                                   then underWater sim + 1 else 0
+                    , waterTimer = if waterTimer sim <= 1 then flooding m
+                                   else waterTimer sim - 1
+                    , mineMap = m { water = water m + if waterTimer sim == 1 then 1 else 0 }
+                    }
+  where m = mineMap sim
 
 walk :: SimState -> Route -> SimState
 walk = foldl step
