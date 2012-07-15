@@ -66,7 +66,7 @@ optimise s = fixWith fixes
                              in  if   score ns <= score s
                                  then fixWith fs
                                  else trace (l ++ ": " ++ (show $ score s) ++ " --> " ++ (show $ score ns)) $
-                                      optimise ns
+                                      ns
 
         fixes = [ (rul0, "rul0"), (rul1, "rul1"), (rul2, "rul2") ]
 

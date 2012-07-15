@@ -5,7 +5,9 @@ import Simulation
 import Heuristics
 
 import Control.Concurrent
+import Control.Monad
 
+import System.IO
 import System.Posix.Signals
 
 import Prelude hiding (catch)
@@ -16,7 +18,9 @@ interruptableSearch :: Heuristic -> MineMap -> IO Route
 interruptableSearch h m = do
   resvar <- newEmptyMVar
   commvar <- newEmptyMVar
-  _ <- installHandler sigINT (CatchOnce $ putMVar commvar Timeout) Nothing
+  let intHandler = do hPutStrLn stderr "Received SIGINT, moving to optimisatsion"
+                      putMVar commvar Timeout
+  _ <- installHandler sigINT (CatchOnce intHandler) Nothing
   _ <- forkIO $ generator commvar h m
   _ <- forkIO $ accumulator commvar resvar
   takeMVar resvar
@@ -36,9 +40,32 @@ accumulator commvar resvar = do
                Solution s -> go s
     where go best = do
             comm <- takeMVar commvar
-            case comm of Solution s -> do go $ if score s > score best
-                                               then s else best
-                         _          -> do putMVar resvar $ resRoute best
+            case comm of Solution s -> go $ if score s > score best
+                                            then s else best
+                         _          -> putMVar resvar =<< resRoute best
 
-resRoute :: SimState -> Route
-resRoute = reverse . steps . optimise
+resRoute :: SimState -> IO Route
+resRoute = (return . reverse . steps) <=< optimiseFor 10
+
+optimiseFor :: Int -> SimState -> IO SimState
+optimiseFor t sim = do
+  commvar <- newEmptyMVar
+  resvar <- newEmptyMVar
+  let buffer sim' = do comm <- takeMVar commvar
+                       case comm of Just sim'' -> report sim' sim'' >> buffer sim''
+                                    Nothing    -> putMVar resvar sim'
+  _ <- forkIO $ threadDelay (t*1000000) >> putMVar commvar Nothing
+  _ <- forkIO $ buffer sim
+  _ <- forkIO $ do mapM_ (putMVar commvar . Just)
+                           $ whileBetter (score sim)
+                           $ drop 1 $ iterate optimise sim
+                   putMVar commvar Nothing
+  takeMVar resvar
+    where report from to = hPutStrLn stderr $
+                           "Went from "
+                           ++ show (score from)
+                           ++ " to "
+                           ++ show (score to)
+          whileBetter cur (new:xs)
+            | score new > cur = new : whileBetter (score new) xs
+          whileBetter _ _ = []
