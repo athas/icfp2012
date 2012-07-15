@@ -99,7 +99,9 @@ targets m = case ls of
                        | otherwise = True -- abs (fst x-fst y) < trsh
                  in map snd $ concatMap (take 1) $ groupBy approx ls
   where ls = sortBy (comparing fst) $ map (value &&& id) options
-        options = S.toList (lambdas m) ++ S.toList (razors m)
+        options = S.toList (lambdas m)
+                  ++ S.toList (razors m)
+                  ++ filter (isWalkable m) (concatMap (cellNeighbors m) (S.toList $ hoRocks m))
         value p = dist p
         dist = distTo (robot m)
         distTo (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1)
@@ -140,10 +142,11 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
                                 | otherwise -> -3
                          Razor | belowRock m p -> 5
                                | otherwise -> -3
+                         LambdaRock -> -6
                          _     -> 1
           where (x,y) = p
                 (w,_) = mapBounds m
 
 belowRock :: MineMap -> Pos -> Bool
-belowRock m (x,y) = y < h && isRock m (x,y+1)
+belowRock m (x,y) = y < h && isNormalRock m (x,y+1)
   where (_,h) = mapBounds m

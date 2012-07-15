@@ -13,10 +13,12 @@ module MineMap
   , isRobot
   , isWall
   , isRock
+  , isNormalRock
   , isLambdaRock
   , isLambda
   , isLift
   , isOpenLift
+  , isWalkable
   , isEmpty
   , isBeard
   , isRazor
@@ -105,6 +107,9 @@ isRock = cellProp f
         f LambdaRock = True
         f _ = False
 
+isNormalRock :: MineMap -> Pos -> Bool
+isNormalRock = cellProp (==Rock)
+
 isLambdaRock :: MineMap -> Pos -> Bool
 isLambdaRock = cellProp (==LambdaRock)
 
@@ -119,6 +124,16 @@ isRazor = cellProp (==Razor)
 
 isLambda :: MineMap -> Pos -> Bool
 isLambda = cellProp (==Lambda)
+
+isWalkable :: MineMap -> Pos -> Bool
+isWalkable = cellProp f
+  where f Empty = True
+        f Lambda = True
+        f Earth = True
+        f (Lift Open) = True
+        f Razor = True
+        f (Trampoline _ _) = True
+        f _ = False
 
 setCell :: MineMap -> Pos -> Cell -> MineMap
 setCell m p c = changeMap m [(p,c)]
