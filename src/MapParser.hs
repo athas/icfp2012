@@ -23,6 +23,7 @@ parseChar _ 'O' = return $ Lift Open
 parseChar _ 'R' = return Robot
 parseChar _ 'W' = return Beard
 parseChar _ '!' = return Razor
+parseChar _ '@' = return LambdaRock
 parseChar f c | c >= 'A' && c <= 'I' = Trampoline c <$> f c
               | c >= '1' && c <= '9' = return $ Target (read [c])
               | otherwise =  fail $ "Invalid character in map: '" ++ [c] ++ "'"

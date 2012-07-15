@@ -15,6 +15,7 @@ cellToChar Robot  = 'R'
 cellToChar (Trampoline k _) = k
 cellToChar Razor = '!'
 cellToChar Beard = 'W'
+cellToChar LambdaRock = '@'
 cellToChar (Target k) = head $ show k
 
 chunks :: Int -> [a] -> [[a]]

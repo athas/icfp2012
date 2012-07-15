@@ -13,6 +13,7 @@ module MineMap
   , isRobot
   , isWall
   , isRock
+  , isLambdaRock
   , isLambda
   , isLift
   , isOpenLift
@@ -38,12 +39,14 @@ data LiftState = Open | Closed
 data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty
           | Trampoline Char Pos | Target Int
           | Razor | Beard
+          | LambdaRock
             deriving (Eq, Ord, Show)
 
 data MineMap = MineMap { robot :: Pos
                        , cells :: Array Pos Cell
                        , lifts :: S.Set Pos
                        , rocks :: S.Set Pos
+                       , hoRocks :: S.Set Pos
                        , beards :: S.Set Pos
                        , lambdas :: S.Set Pos
                        , razors :: S.Set Pos
@@ -56,7 +59,7 @@ data MineMap = MineMap { robot :: Pos
              deriving (Eq, Ord, Show)
 
 newMap :: (Int, Int) -> Int -> Int -> Int -> Int -> Int -> MineMap
-newMap p = MineMap p m S.empty S.empty S.empty S.empty S.empty
+newMap p = MineMap p m S.empty S.empty S.empty S.empty S.empty S.empty
   where m = listArray ((1,1), p) (repeat Wall) // [(p, Robot)]
 
 mapBounds :: MineMap -> (Int, Int)
@@ -97,7 +100,13 @@ isOpenLift :: MineMap -> Pos -> Bool
 isOpenLift = cellProp (==Lift Open)
 
 isRock :: MineMap -> Pos -> Bool
-isRock = cellProp (==Rock)
+isRock = cellProp f
+  where f Rock = True
+        f LambdaRock = True
+        f _ = False
+
+isLambdaRock :: MineMap -> Pos -> Bool
+isLambdaRock = cellProp (==LambdaRock)
 
 isEmpty :: MineMap -> Pos -> Bool
 isEmpty = cellProp (==Empty)
@@ -123,6 +132,7 @@ register :: MineMap -> Pos -> Cell -> (MineMap, [(Pos, Cell)])
 register m p c = case c of
                    Lift _ -> (m' { lifts = S.insert p (lifts m') }, l)
                    Rock   -> (m' { rocks = S.insert p (rocks m') }, l)
+                   LambdaRock -> (m' { hoRocks = S.insert p (hoRocks m') }, l)
                    Beard  -> (m' { beards = S.insert p (beards m') }, l)
                    Lambda -> (m' { lambdas = S.insert p (lambdas m') }, l)
                    Razor  -> (m' { razors = S.insert p (razors m') }, l)
@@ -135,6 +145,7 @@ register m p c = case c of
         m' = case getCell m p of
                Lift _ -> m { lifts = S.delete p (lifts m) }
                Rock   -> m { rocks = S.delete p (rocks m) }
+               LambdaRock -> m { hoRocks = S.delete p (hoRocks m) }
                Beard  -> m { beards = S.delete p (beards m) }
                Lambda -> m { lambdas = S.delete p (lambdas m) }
                Razor  -> m { razors = S.delete p (razors m) }
