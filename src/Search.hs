@@ -40,4 +40,4 @@ accumulator commvar resvar = do
                          _          -> do putMVar resvar $ resRoute best
 
 resRoute :: SimState -> Route
-resRoute = reverse . steps -- . optimise
+resRoute = reverse . steps . optimise
