@@ -21,6 +21,8 @@ parseChar _ '.' = return Earth
 parseChar _ 'L' = return $ Lift Closed
 parseChar _ 'O' = return $ Lift Open
 parseChar _ 'R' = return Robot
+parseChar _ 'W' = return Beard
+parseChar _ '!' = return Razor
 parseChar f c | c >= 'A' && c <= 'I' = Trampoline c <$> f c
               | c >= '1' && c <= '9' = return $ Target (read [c])
               | otherwise =  fail $ "Invalid character in map: '" ++ [c] ++ "'"
@@ -35,7 +37,10 @@ parseInt s = case reads $ takeWhile (not . isSpace) s of
                (x, ""):_ -> return x
                _ -> fail $ "'" ++ s ++ "' is not an integer"
 
-data Metadata = Water Int | Flooding Int | Waterproof Int | TrampConnection Char Int
+data Metadata = Water Int | Flooding Int | Waterproof Int
+              | TrampConnection Char Int
+              | Growth Int
+              | Razors Int
 
 findWater :: [Metadata] -> Int
 findWater = fromMaybe 0 . listToMaybe . mapMaybe wt
@@ -52,6 +57,16 @@ findWaterproof = fromMaybe 10 . listToMaybe . mapMaybe wt
   where wt (Waterproof w) = Just w
         wt _              = Nothing
 
+findGrowth :: [Metadata] -> Int
+findGrowth = fromMaybe 25 . listToMaybe . mapMaybe wt
+  where wt (Growth w) = Just w
+        wt _          = Nothing
+
+findRazors :: [Metadata] -> Int
+findRazors = fromMaybe 0 . listToMaybe . mapMaybe wt
+  where wt (Razors w) = Just w
+        wt _          = Nothing
+
 findTrampoline :: [Metadata] -> Char -> Maybe Int
 findTrampoline meta c = listToMaybe $ mapMaybe tramp meta
   where tramp (TrampConnection c' k) | c == c' = Just k
@@ -62,6 +77,8 @@ parseMetadata = mapM parse
   where parse s | "Waterproof" `isPrefixOf` s = parsenum Waterproof s
                 | "Water" `isPrefixOf` s = parsenum Water s
                 | "Flooding" `isPrefixOf` s = parsenum Flooding s
+                | "Growth" `isPrefixOf` s = parsenum Growth s
+                | "Razors" `isPrefixOf` s = parsenum Razors s
                 | "Trampoline" `isPrefixOf` s =
                 let s' = dropWhile isSpace $ dropWhile (not . isSpace) s
                 in case s' of [] -> bad
@@ -93,6 +110,8 @@ parseLayout meta s = do
         mp = newMap (w,h) (findWater meta)
                           (findFlooding meta)
                           (findWaterproof meta)
+                          (findGrowth meta)
+                          (findRazors meta)
         (w, h) = (maximum (map length s), length s)
         mkpos (y,l) = zipWith (\x c -> ((x,y), c)) [1..] l
         mkMap (Nothing, _) = Left "No robot in map"

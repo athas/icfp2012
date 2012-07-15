@@ -27,6 +27,7 @@ data StopReason = RobotAbort | RobotDead | RobotWon
 data SimState = SimState { stopReason :: Maybe StopReason
                          , underWater :: Int
                          , waterTimer :: Int
+                         , beardTimer :: Int
                          , mineMap :: MineMap
                          , origMap :: MineMap
                          , steps :: [Action]
@@ -37,6 +38,7 @@ stateFromMap :: MineMap -> SimState
 stateFromMap m = SimState { stopReason = Nothing
                           , underWater = 0
                           , waterTimer = 0
+                          , beardTimer = beardGrowth m - 1
                           , mineMap = m
                           , origMap = m
                           , steps = []
@@ -78,6 +80,12 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
           case a of
             Abort -> Just sim { stopReason = Just RobotAbort }
             Wait  -> Just sim
+            ApplyRazor | currentRazors m > 0 ->
+                         Just sim { mineMap =
+                                      changeMap m { currentRazors = currentRazors m - 1} $
+                                      map (\p -> (p, Empty)) $
+                                      filter (isBeard m) (cellNeighbors m (x,y)) }
+                       | otherwise -> Nothing
             _
               | isOpenLift m (x',y') -> Just sim { stopReason = Just RobotWon
                                                  , mineMap = m' }
@@ -89,13 +97,21 @@ trystep sim a = liftM (mapupdate . \s -> s { steps = a : steps s }) sim'
                 Just sim { mineMap = setCell m' (x-2,y) Rock }
               | otherwise -> case getCell m (x',y') of
                                Trampoline _ p -> Just sim { mineMap = setCell (setCell m' (x',y') Empty) p Robot }
+                               Razor          -> Just sim { mineMap = m' { currentRazors = currentRazors m' + 1 } }
                                _              -> Just sim
 
 mapupdate :: SimState -> SimState
-mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }
+mapupdate sim = stopCheck m $ waterflow sim { mineMap = m'
+                                            , beardTimer =
+                                              if beardTimer sim == 0
+                                              then beardGrowth m - 1
+                                              else beardTimer sim - 1 }
   where m = mineMap sim
         m' = changeMap m $ map ulifts (S.toList $ lifts m) ++
-                           concatMap urocks (S.toList $ rocks m)
+                           concatMap urocks (S.toList $ rocks m) ++
+                           if beardTimer sim == 0 then
+                             concatMap ubeard (S.toList $ beards m)
+                           else []
         urocks (x,y)
           | isEmpty m (x,y-1) =
             [((x,y), Empty), ((x,y-1), Rock)]
@@ -109,8 +125,9 @@ mapupdate sim = stopCheck m $ waterflow sim { mineMap = m' }
             isEmpty m (x+1,y) && isEmpty m (x+1,y-1) =
               [((x,y), Empty), ((x+1,y-1), Rock)]
           | otherwise = []
-        ulifts (x,y) | S.null (lambdas m) = ((x,y), Lift Open)
-                     | otherwise          = ((x,y), Lift Closed)
+        ubeard = map (\p' -> (p', Beard)) . filter (isEmpty m) . cellNeighbors m
+        ulifts p | S.null (lambdas m) = (p, Lift Open)
+                 | otherwise          = (p, Lift Closed)
 
 squashed :: MineMap -> MineMap -> Bool
 squashed from to =

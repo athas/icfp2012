@@ -7,6 +7,7 @@ module MineMap
   , changeMap
   , mapBounds
   , isValidPos
+  , cellNeighbors
   , getCell
   , isEarth
   , isRobot
@@ -16,6 +17,8 @@ module MineMap
   , isLift
   , isOpenLift
   , isEmpty
+  , isBeard
+  , isRazor
   , setCell
   , Action(..)
   , Route
@@ -32,22 +35,28 @@ type Pos = (Int, Int)
 data LiftState = Open | Closed
                  deriving (Eq, Ord, Show)
 
-data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty | Trampoline Char Pos | Target Int
+data Cell = Earth | Robot | Wall | Rock | Lambda | Lift LiftState | Empty
+          | Trampoline Char Pos | Target Int
+          | Razor | Beard
             deriving (Eq, Ord, Show)
 
 data MineMap = MineMap { robot :: Pos
                        , cells :: Array Pos Cell
                        , lifts :: S.Set Pos
                        , rocks :: S.Set Pos
+                       , beards :: S.Set Pos
                        , lambdas :: S.Set Pos
+                       , razors :: S.Set Pos
                        , water :: Int
                        , flooding :: Int
                        , waterproof :: Int
+                       , beardGrowth :: Int
+                       , currentRazors :: Int
                        }
              deriving (Eq, Ord, Show)
 
-newMap :: (Int, Int) -> Int -> Int -> Int -> MineMap
-newMap p = MineMap p m S.empty S.empty S.empty
+newMap :: (Int, Int) -> Int -> Int -> Int -> Int -> Int -> MineMap
+newMap p = MineMap p m S.empty S.empty S.empty S.empty S.empty
   where m = listArray ((1,1), p) (repeat Wall) // [(p, Robot)]
 
 mapBounds :: MineMap -> (Int, Int)
@@ -57,6 +66,12 @@ isValidPos :: MineMap -> Pos -> Bool
 isValidPos m (x, y) = 1 <= x && x <= mX && 1 <= y && y <= mY
   where
     (mX, mY) = mapBounds m
+
+cellNeighbors :: MineMap -> Pos -> [Pos]
+cellNeighbors m (x,y) = filter (isValidPos m) ps
+  where ps = [(x+1,y+1),(x+1,y),(x+1,y-1),
+              (x,y+1),(x,y-1),
+              (x-1,y+1),(x-1,y),(x-y,y-1)]
 
 getCell :: MineMap -> Pos -> Cell
 getCell m p = cells m ! p
@@ -87,6 +102,12 @@ isRock = cellProp (==Rock)
 isEmpty :: MineMap -> Pos -> Bool
 isEmpty = cellProp (==Empty)
 
+isBeard :: MineMap -> Pos -> Bool
+isBeard = cellProp (==Beard)
+
+isRazor :: MineMap -> Pos -> Bool
+isRazor = cellProp (==Razor)
+
 isLambda :: MineMap -> Pos -> Bool
 isLambda = cellProp (==Lambda)
 
@@ -102,7 +123,9 @@ register :: MineMap -> Pos -> Cell -> (MineMap, [(Pos, Cell)])
 register m p c = case c of
                    Lift _ -> (m' { lifts = S.insert p (lifts m') }, l)
                    Rock   -> (m' { rocks = S.insert p (rocks m') }, l)
+                   Beard  -> (m' { beards = S.insert p (beards m') }, l)
                    Lambda -> (m' { lambdas = S.insert p (lambdas m') }, l)
+                   Razor  -> (m' { razors = S.insert p (razors m') }, l)
                    Robot  -> (m' { robot = p },
                               if isRobot m' (robot m) && p /= robot m'
                               then (robot m', Empty) : l
@@ -111,11 +134,13 @@ register m p c = case c of
   where l = [(p,c)]
         m' = case getCell m p of
                Lift _ -> m { lifts = S.delete p (lifts m) }
-               Rock -> m { rocks = S.delete p (rocks m) }
+               Rock   -> m { rocks = S.delete p (rocks m) }
+               Beard  -> m { beards = S.delete p (beards m) }
                Lambda -> m { lambdas = S.delete p (lambdas m) }
+               Razor  -> m { razors = S.delete p (razors m) }
                _ -> m
 
-data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort
+data Action = MoveUp | MoveDown | MoveLeft | MoveRight | Wait | Abort | ApplyRazor
               deriving (Eq, Ord, Show)
 
 type Route = [Action]
@@ -128,6 +153,7 @@ routeToString = map f
         f MoveRight = 'R'
         f Wait = 'W'
         f Abort = 'A'
+        f ApplyRazor = 'S'
 
 stringToRoute :: String -> Maybe Route
 stringToRoute = mapM f
@@ -137,4 +163,5 @@ stringToRoute = mapM f
         f 'R' = Just MoveRight
         f 'W' = Just Wait
         f 'A' = Just Abort
+        f 'S' = Just ApplyRazor
         f _   = Nothing
