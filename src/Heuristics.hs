@@ -44,7 +44,7 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
 
 
 fixProblem :: SimState -> SimState -- But better
-fixProblem s = fixWith fixes
+fixProblem s = s -- fixWith fixes
     where
         fixWith []         = s
         fixWith ((f,l):fs) = let ns = f s
@@ -91,15 +91,15 @@ dumbHeuristic = Heuristic {
 
 
 targets :: MineMap -> [Pos]
-targets m =
-  case ls of
+targets m = case ls of
     []    -> []
     ((d,_):_) -> let close = d + 2
                      approx x y
                        | fst x < close || fst y < close = False
                        | otherwise = True -- abs (fst x-fst y) < trsh
                  in map snd $ concatMap (take 1) $ groupBy approx ls
-  where ls = sortBy (comparing fst) $ map (value &&& id) $ S.toList $ lambdas m
+  where ls = sortBy (comparing fst) $ map (value &&& id) options
+        options = S.toList (lambdas m) ++ S.toList (razors m)
         value p = dist p
         dist = distTo (robot m)
         distTo (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1)
@@ -118,12 +118,18 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
             _ -> (M.insert (robot $ mineMap sim') (sim',cost) seen,
                   (sim',cost):ns)
         neighbors sim' cost
-          | robot (mineMap sim') == to = []
-          | otherwise = mapMaybe move' [MoveUp,MoveDown,MoveLeft,MoveRight]
-          where move' a = case sim' `trystep` a of
+          | robot m == to = []
+          | otherwise = mapMaybe move' [ApplyRazor,MoveUp,MoveDown,MoveLeft,MoveRight]
+          where m = mineMap sim'
+                move' ApplyRazor
+                  | not (any (isBeard m) $ cellNeighbors m $ robot m) = Nothing
+                move' a = case sim' `trystep` a of
                             Just sim'' | not (dead sim'') ->
-                              Just (sim'', cost+stepcost (mineMap sim') (robot $ mineMap sim''))
+                              Just (sim'', cost
+                                           + stepcost m (robot $ mineMap sim'')
+                                           - razorgain sim' sim'')
                             _ -> Nothing
+        razorgain sim1 sim2 = S.size (beards $ mineMap sim1) - S.size (beards $ mineMap sim2)
         stepcost m p = case getCell m p of
                          Empty -> 1
                          Earth | belowRock m p -> 6
@@ -132,6 +138,8 @@ pathTo sim from to = go (M.singleton from (sim, 0)) [(sim, 0)]
                          Rock  -> 4000
                          Lambda | belowRock m p -> 5
                                 | otherwise -> -3
+                         Razor | belowRock m p -> 5
+                               | otherwise -> -3
                          _     -> 1
           where (x,y) = p
                 (w,_) = mapBounds m
