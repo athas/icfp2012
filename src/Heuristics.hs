@@ -1,6 +1,11 @@
 module Heuristics
   ( Heuristic(..)
   , runHeuristic
+  , searchOne
+  , optimise
+  , endNode
+  , initSearch
+  , simFromSearch
   , dumbHeuristic
   , pathTo
   )
@@ -23,35 +28,45 @@ data Heuristic = Heuristic {
   , routeTo :: SimState -> Pos -> SimState
   }
 
+type SearchState = [Pos]
+
+endNode :: SearchNode -> Bool
+endNode = null . snd
+
+initSearch :: Heuristic -> SimState -> SearchNode
+initSearch h sim = (sim, nextLambda h $ mineMap sim)
+
+simFromSearch :: SearchNode -> SimState
+simFromSearch = fst
+
+type SearchNode = (SimState, SearchState)
+
+searchOne :: Heuristic -> SearchNode -> [SearchNode]
+searchOne h (sim, dests) = search
+  where search =
+          let proceeded sim' = won sim' || collected sim' > collected sim
+              sims = map (routeTo h sim) dests
+          in if finished sim || null sims then [(sim, [])]
+             else case filter proceeded sims of
+                    []    -> [ (sim, drop 3 dests) ]
+                    sims' -> map (initSearch h) sims'
+
 runHeuristic :: MineMap -> Heuristic -> Route
-runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
-                   run $ stateFromMap m
-  where run :: SimState -> [SimState]
-        run sim =
-          let m' = mineMap sim
-              dests = case nextLambda h m' of
-                        [] -> S.toList $ lifts m'
-                        ls -> ls
-          in run' sim $ take 3 dests
-        run' sim dests = let proceeded sim' = won sim' || lleft sim' < lleft sim
-                             sims = map (routeTo h sim) $ take 3 dests
-                         in trace ("trying lambdas " ++ show dests) $
-                            if finished sim || null sims then [sim]
-                            else case filter proceeded sims of
-                                   [] -> run' sim $ drop 3 dests
-                                   sims' -> concatMap run $ take 2 sims'
-        lleft = S.size . lambdas . mineMap
+runHeuristic m h = reverse $ steps $ optimise $ maximumBy (comparing score) $
+                   run [initSearch h $ stateFromMap m]
+  where run []     = []
+        run (n:ns) | endNode n = simFromSearch n : run ns
+                   | otherwise = simFromSearch n : run (searchOne h n ++ ns)
 
-
-fixProblem :: SimState -> SimState -- But better
-fixProblem s = fixWith fixes
+optimise :: SimState -> SimState -- But better
+optimise s = fixWith fixes
     where
         fixWith []         = s
         fixWith ((f,l):fs) = let ns = f s
                              in  if   score ns <= score s
                                  then fixWith fs
                                  else trace (l ++ ": " ++ (show $ score s) ++ " --> " ++ (show $ score ns)) $
-                                      fixProblem ns
+                                      optimise ns
 
         fixes = [ (rul0, "rul0"), (rul1, "rul1"), (rul2, "rul2") ]
 
@@ -102,6 +117,7 @@ targets m = case ls of
         options = S.toList (lambdas m)
                   ++ S.toList (razors m)
                   ++ filter (isWalkable m) (concatMap (cellNeighbors m) (S.toList $ hoRocks m))
+                  ++ filter (isOpenLift m) (S.toList $ lifts m)
         value p = dist p
         dist = distTo (robot m)
         distTo (x1,y1) (x2,y2) = abs (x2-x1) + abs (y2-y1)

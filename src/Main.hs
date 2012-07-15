@@ -1,5 +1,6 @@
 module Main(main) where
 
+import Search
 import Heuristics
 import Simulation
 import MapParser
@@ -10,8 +11,8 @@ import Control.Concurrent
 import Data.Maybe
 import System.Environment
 
-solution :: MineMap -> Route
-solution m = runHeuristic m dumbHeuristic
+solution :: MineMap -> IO Route
+solution = timedSearch 30 dumbHeuristic
 
 showSteps :: SimState -> Route -> Route -> IO SimState
 showSteps sim _ [] = return sim
@@ -20,7 +21,7 @@ showSteps sim orig (a:as) = do putStr "\27[2J"
                                putStrLn $ printMap $ mineMap sim'
                                putStrLn "Route:"
                                putStrLn $ routeToString orig
-                               threadDelay 250000
+                               threadDelay 25000
                                showSteps sim' orig as
   where sim' = sim `step` a
 
@@ -41,7 +42,7 @@ main = do args <- getArgs
                       case parseMap s of
                         Left e -> error e
                         Right from -> do
-                          let route = solution from
+                          route <- solution from
                           putStrLn $ "From:\n" ++ printMap from
                           sim <- showSteps (stateFromMap from) route route
                           let reason = stopReason sim
@@ -52,7 +53,7 @@ main = do args <- getArgs
                             case parseMap s of
                               Left e -> error e
                               Right from -> do
-                                let route = solution from
+                                route <- solution from
                                 putStrLn $ "From:\n" ++ printMap from
                                 let sim = walk (stateFromMap from) route
                                 let reason = stopReason sim
@@ -63,11 +64,11 @@ main = do args <- getArgs
                                case parseMap s of
                                  Left e -> error e
                                  Right from -> do
-                                   let route = solution from
+                                   route <- solution from
                                    putStrLn $ "From:\n" ++ printMap from
                                    putStrLn $ "Route: " ++ routeToString route
             [] -> do s <- getContents
                      case parseMap s of
                        Left e -> error e
-                       Right m -> putStrLn $ routeToString $ solution m
+                       Right m -> (putStrLn . routeToString) =<< solution m
             _ -> error "Wrong parameters"
