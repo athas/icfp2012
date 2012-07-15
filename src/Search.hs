@@ -1,4 +1,4 @@
-module Search (timedSearch) where
+module Search (interruptableSearch) where
 
 import MineMap (MineMap, Route, Action(Abort))
 import Simulation
@@ -6,19 +6,20 @@ import Heuristics
 
 import Control.Concurrent
 
+import System.Posix.Signals
+
+import Prelude hiding (catch)
+
 data Comm = Finished | Timeout | Solution SimState
 
-timedSearch :: Int -> Heuristic -> MineMap -> IO Route
-timedSearch t h m = do resvar <- newEmptyMVar
-                       commvar <- newEmptyMVar
-                       _ <- forkIO $ timer commvar t
-                       _ <- forkIO $ generator commvar h m
-                       _ <- forkIO $ accumulator commvar resvar
-                       takeMVar resvar
-
-timer :: MVar Comm -> Int -> IO ()
-timer commvar t = do threadDelay $ 1000000 * t
-                     putMVar commvar Timeout
+interruptableSearch :: Heuristic -> MineMap -> IO Route
+interruptableSearch h m = do
+  resvar <- newEmptyMVar
+  commvar <- newEmptyMVar
+  _ <- installHandler sigINT (CatchOnce $ putMVar commvar Timeout) Nothing
+  _ <- forkIO $ generator commvar h m
+  _ <- forkIO $ accumulator commvar resvar
+  takeMVar resvar
 
 generator :: MVar Comm -> Heuristic -> MineMap -> IO ()
 generator commvar h m = run [initSearch h $ stateFromMap m]

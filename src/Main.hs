@@ -12,7 +12,7 @@ import Data.Maybe
 import System.Environment
 
 solution :: MineMap -> IO Route
-solution = timedSearch 30 dumbHeuristic
+solution = interruptableSearch dumbHeuristic
 
 showSteps :: SimState -> Route -> Route -> IO SimState
 showSteps sim _ [] = return sim
