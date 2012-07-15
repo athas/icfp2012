@@ -44,7 +44,7 @@ runHeuristic m h = reverse $ steps $ fixProblem $ maximumBy (comparing score) $
 
 
 fixProblem :: SimState -> SimState -- But better
-fixProblem s = s -- fixWith fixes
+fixProblem s = fixWith fixes
     where
         fixWith []         = s
         fixWith ((f,l):fs) = let ns = f s
